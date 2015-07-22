@@ -1,0 +1,2 @@
+# flavors
+LFE Flavor package
