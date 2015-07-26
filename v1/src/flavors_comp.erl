@@ -113,13 +113,26 @@ endflavor(Name) ->
     [progn].
 
 methods(Ms, Flav) ->
-    E = 'undefined-method',
-    [ [[?Q(M),self,[list|As]] | Body] || {M,[As|Body]} <- Ms ] ++
-	[[[m,'_','_'],[error,[tuple,?Q(E),?Q(Flav),m]]]].
+    E = 'undefined-primary-method',
+    lists:foldr(fun (M, Mcs) -> method(M, Mcs) end,
+		[[[m,'_','_'],[error,[tuple,?Q(E),?Q(Flav),m]]]],
+		Ms).
+
+method({M,[As|Body]=Cs}, Mcs) ->
+    %% Check whether it is traditional or matching form.
+    case lfe_lib:is_symb_list(As) of
+	true -> [method_clause(M, As, Body)|Mcs];
+	false ->
+	    [ method_clause(M, As, Body) || [As|Body] <- Cs ] ++ Mcs
+    end.
+
+method_clause(M, [], Body) -> [[?Q(M),self,[]] | Body];
+method_clause(M, As, Body) -> [[?Q(M),self,[list|As]] | Body].
 
 gettable(#flavor{vars=Vars,options=Opts}) ->
     Get = fun (Var) ->
-		  [[?Q(Var),self,[]],[tuple,[mref,self,?Q(Var)],self]]
+		  B = [[tuple,[mref,self,?Q(Var)],self]],
+		  method_clause(Var, [], B)
 	  end,
     case lists:member('gettable-instance-variables', Opts) of
 	true -> [ Get(Var) || Var <- Vars ];
@@ -129,8 +142,8 @@ gettable(#flavor{vars=Vars,options=Opts}) ->
 settable(#flavor{vars=Vars,options=Opts}) ->
     Set = fun (Var) ->
 		  M = list_to_atom(lists:concat(["set-",Var])),
-		  [[?Q(M),self,[list,val]],
-		   [tuple,?Q(ok),[mupd,self,?Q(Var),val]]]
+		  B = [[tuple,?Q(ok),[mupd,self,?Q(Var),val]]],
+		  method_clause(M, [val], B)
 	  end,
     case lists:member('settable-instance-variables', Opts) of
 	true -> [ Set(Var) || Var <- Vars ];
@@ -139,6 +152,5 @@ settable(#flavor{vars=Vars,options=Opts}) ->
 
 daemons(Ds, Daemon, Flav) ->
     E = list_to_atom(lists:concat(["undefined-",Daemon,"-daemon"])),
-    [ [[?Q(M),self,[list|As]] | Body] || {M,D,[As|Body]} <- Ds,
-					 D =:= Daemon ] ++
+    [ method_clause(M, As, Body) || {M,D,[As|Body]} <- Ds, D =:= Daemon ] ++
 	[[[m,'_','_'],[error,[tuple,?Q(E),?Q(Flav),m]]]].
