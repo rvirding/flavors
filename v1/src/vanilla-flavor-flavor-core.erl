@@ -44,11 +44,10 @@ daemons('after') -> [].
 'primary-method'(set, Self, [I,V]) ->
     {ok,maps:update(I, V, Self)};
 'primary-method'(M, _, _) ->
-    error({undefined_primary_method,'vanilla',M}).
-
+    error({'undefined-primary-method','vanilla-flavor',M}).
 
 'before-daemon'(M, _, _) ->
-    error({undefined_before_daemon,'vanilla-flavor',M}).
+    error({'undefined-before-daemon','vanilla-flavor',M}).
 
 'after-daemon'(M, _, _) ->
-    error({undefined_after_daemon,'vanilla-flavor',M}).
+    error({'undefined-after-daemon','vanilla-flavor',M}).
