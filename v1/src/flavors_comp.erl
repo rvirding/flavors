@@ -108,7 +108,8 @@ endflavor(Name) ->
     After = [defun,'after-daemon'|Afts],
     Forms = [Mod,Method,Before,After|Funcs],
     lfe_io:format("~p\n", [Forms]),
-    {ok,_,Binary} = lfe_comp:forms(Forms),
+    Source = lists:concat([Fl#flavor.name,".lfe"]),
+    {ok,_,Binary} = lfe_comp:forms(Forms, [verbose,report,{source,Source}]),
     file:write_file(lists:concat([Cname,".beam"]), Binary),
     [progn].
 

@@ -18,7 +18,7 @@
 
 -module(flavors).
 
--export(['make-instance'/2,send/3]).
+-export(['instantiate-flavor'/2,send/3]).
 
 -define(Q(E), [quote,E]).			%We do a lot of quoting.
 
@@ -29,9 +29,9 @@ send(#{'*flavor-module*' := Fm}=Self, Meth, Args) ->
 send(_, _, _) ->
     error(flavor_instance).
 
-%'make-instance'(Flavor, Options) -> Instance.
+%'instantiate-flavor'(Flavor, OptionPlist) -> Instance.
 
-'make-instance'(Name, Opts) ->
+'instantiate-flavor'(Name, Opts) ->
     Fm = flavors_lib:mod_name(Name),		%Name of the flavor module
     %% Check that flavor module is loaded, otherwise make it and load it.
     erlang:module_loaded(Fm) orelse make_load_module(Name, Fm),
@@ -57,7 +57,8 @@ make_load_module(Flav, Fm) ->
     Combined = [defun,'combined-method'|Combs],
     Forms = [Mod,Combined|Funcs],
     lfe_io:format("~p\n", [Forms]),
-    {ok,_,Binary} = lfe_comp:forms(Forms),
+    Source = lists:concat([Flav,".lfe"]),
+    {ok,_,Binary,_} = lfe_comp:forms(Forms, [report,return,{source,Source}]),
     code:load_binary(Fm, lists:concat([Fm,".lfe"]), Binary).
 
 combined_methods(Cmeths, Flav) ->
