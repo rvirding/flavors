@@ -31,7 +31,10 @@ To access the macros do ``(include-file "include/flavors.lfe")`` or
 ``(include-lib "flavors/include/flavors.lfe")`` if you have the
 flavors application in your search path.
 
-In this simple test the map representing the instance is directly visible and operations on it are explicitly done. There is no hiding of the actual implementation. The following macros are available for defining flavors:
+In this simple test the map representing the instance is directly
+visible and operations on it are explicitly done. There is no hiding
+of the actual implementation. The following macros are available for
+defining flavors:
 
 ```lisp
 (defflavor <flavor-name> (<var1> <var2> ...) (<flav1> <flav2> ...) <opt1> <opt2> ...)
@@ -40,20 +43,27 @@ In this simple test the map representing the instance is directly visible and op
 (endflavor <flavor-name>)               ;Must be last after the methods
 ```
 
-Currently we support the options ``gettable-instance-variables``, ``settable-instance-variables`` and ``inittable-instance-variables`` and the standard method types ``before`` and ``after`` for the daemons.
+Currently we support the options ``gettable-instance-variables``,
+``settable-instance-variables`` and ``inittable-instance-variables``
+and the standard method types ``before`` and ``after`` for the
+daemons.
 
 For using the flavor definitions there is:
 
 ```lisp
-(make-instance <flavor-name> <opt1> <value1> <otp2> <value2> ... )
+(make-instance <flavor-name> <opt1> <value1> <opt2> <value2> ... )
 (flavors:instantiate-flavor <flavor-name> <init-plist>)
 
 (send <object> <operation> <arg1> ...)
 ```
 
-A primary method **MUST** return the tuple ``#(<return-value> <updated-instance-map>)`` and a daemon methods **MUST** return only the uppdated instance map. See the example flavors ``f1`` and ``f2``.
+A primary method **MUST** return the tuple ``#(<return-value>
+<updated-instance-map>)`` and a daemon methods **MUST** return only
+the updated instance map. See the example flavors ``f1`` and ``f2``.
 
-When defining a flavor the component sequence is built as it should be for the ``before`` and ``after`` daemons and there is a very (very) rudimentary ``vanilla-flavor``.
+When defining a flavor the component sequence is built as it should be
+for the ``before`` and ``after`` daemons and there is a very (very)
+rudimentary ``vanilla-flavor``.
 
 You can define one or many flavors in an LFE file either with or
 without an LFE module. Flavor definitions cannot be intermixed. If you
