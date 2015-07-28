@@ -16,7 +16,7 @@ our stuff is in chapter 21.
 In this version the flavor instance is just a map which behaves just
 like any normal map or other data structure. This means that an
 instance is not a global object and when one is updated then a new
-once created and the old one is there unchanged.
+one is created and the old one is there unchanged.
 
 This means that this flavors version is like super records/elixir
 structs on steroids and is probably not what most people would expect.
