@@ -1,4 +1,7 @@
 # flavors
+
+<img src="resources/images/flavors-logo.png" />
+
 LFE Flavors package
 
 Implements the Lisp Machine flavors system in/and for LFE.
