@@ -1,9 +1,9 @@
 (include-file "include/flavors.lfe")
 
-(defflavor f1 (x y z)
+(defflavor f1 (a (m  42) z (share 'f1))
   (f2)
   gettable-instance-variables
-  settable-instance-variables
+  (settable-instance-variables a m z)	;share is not settable
   inittable-instance-variables)
 
 (defmethod (f1 after set-y) (v)
