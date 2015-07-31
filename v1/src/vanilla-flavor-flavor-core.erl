@@ -17,10 +17,22 @@
 %% Purpose : Basic LFE Flavors vanilla-flavor definition.
 
 %% This is just simple definition of the base flavor vanilla-flavor.
+%%
+%% (defflavor vanilla-flavor () () abstract-flavor)
+%%
+%% (defmethod (vanilla-flavor print-self) (stream)
+%%   (lfe_io:print stream self)
+%%   (tuple 'ok self))
+%%
+%% (defmethod (vanilla-flavor set) (var val)
+%%   (tuple 'ok (maps:update self var val)))
+%%
+%% (endflavor vanilla-flavor)
 
 -module('vanilla-flavor-flavor-core').
 
--export([name/0,'instance-variables'/0,components/0,options/0,
+-export([name/0,'instance-variables'/0,'normalised-instance-variables'/0,
+	 components/0,options/0,'normalised-options'/0,
 	 methods/0,daemons/1]).
 
 -export(['primary-method'/3,'before-daemon'/3,'after-daemon'/3]).
@@ -29,9 +41,21 @@ name() -> 'vanilla-flavor'.
 
 'instance-variables'() -> [].
 
+'normalised-instance-variables'() -> [].
+
 components() -> [].
 
 options() -> [].
+
+'normalised-options'() ->
+    [['gettable-instance-variables'],
+     ['settable-instance-variables'],
+     ['inittable-instance-variables'],
+     ['required-instance-variables'],
+     ['required-methods'],
+     ['required-flavors'],
+     'abstract-flavor'
+    ].
 
 methods() -> ['print-self',set].
 

@@ -26,7 +26,7 @@
 (defmacro endflavor (name) (flavors_comp:endflavor name))
 
 (defmacro make-instance
-  (`(,name . ,opts) `(flavors:instantiate-flavor ,name ,opts)))
+  (`(,name . ,opts) `(flavors:instantiate-flavor ,name (list ,@(flavors:make-init-plist opts)))))
 
 (defmacro send
-  (`(,self ,message . ,args) `(flavors:send ,self ,message ,args)))
+  (`(,self ,message . ,args) `(flavors:send ,self ',message (list ,@args))))

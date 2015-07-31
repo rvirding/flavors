@@ -18,7 +18,7 @@
 
 -module(flavors).
 
--export(['instantiate-flavor'/2,send/3]).
+-export(['make-init-plist'/1,'instantiate-flavor'/2,send/3]).
 
 -define(Q(E), [quote,E]).			%We do a lot of quoting.
 
@@ -31,32 +31,57 @@ send(_, _, _) ->
 
 %'instantiate-flavor'(Flavor, OptionPlist) -> Instance.
 
-'instantiate-flavor'(Name, Opts) ->
-    Fm = flavors_lib:mod_name(Name),		%Name of the flavor module
+'instantiate-flavor'(Flav, Opts) ->
+    Fm = flavors_lib:mod_name(Flav),		%Name of the flavor module
+    Fc = flavors_lib:core_name(Flav),		%Name of the flavor core module
     %% Check that flavor module is loaded, otherwise make it and load it.
-    erlang:module_loaded(Fm) orelse make_load_module(Name, Fm),
+    erlang:module_loaded(Fm) orelse make_load_module(Flav, Fm, Fc),
     %% Now make the instance.
-    do_make_instance(Fm, Opts).
+    make_instance(Flav, Fm, Opts).
 
-do_make_instance(Fm, _) ->
+'make-init-plist'([V,I|Ilist]) ->
+    [?Q(V),I|'make-init-plist'(Ilist)];
+'make-init-plist'([]) -> [].
+
+make_instance(Flav, Fm, Opts) ->
     Ivars = Fm:'instance-variables'(),
-    maps:from_list([{'*flavor-module*',Fm}|[{V,undefined} || V <- Ivars ]]).
+    Mlist = make_map_list(Ivars, Opts),
+    maps:from_list([{'*flavor-module*',Fm}|Mlist]).
 
-make_load_module(Flav, Fm) ->
-    Seq = make_comp_sequence([Flav,'vanilla-flavor']),
+make_map_list([[V,I]|Mlist], Opts) ->
+    Pair = case plist_get(V, Opts) of
+	       {ok,I1} -> {V,I1};
+	       error -> {V,lfe_eval:expr(I)}
+	   end,
+    [Pair|make_map_list(Mlist, Opts)];
+make_map_list([], _) -> [].
+
+plist_get(X, [X,V|_]) -> {ok,V};
+plist_get(X, [_,_|Plist]) -> plist_get(X, Plist);
+plist_get(_, []) -> error.
+
+make_load_module(Flav, Fm, Fc) ->
+    %% Do we want the vanilla falvor
+    Van = case lists:member('no-vanilla-flavor', Fc:'normalised-options'()) of
+	      true -> [];
+	      false -> ['vanilla-flavor']
+	  end,
+    Seq = make_comp_sequence([Flav|Van]),
     Ivars = get_ivars(Seq),
     Meths = get_methods(Seq),
+    %%lfe_io:format("m: ~p\n", [Meths]),
     Cmeths = get_comb_methods(Meths, Seq),
     Mod = [defmodule,Fm,
-	   [export,[name,0],['instance-variables',0],
+	   [export,[name,0],['instance-variables',0],['component-sequence',0],
 	    ['combined-methods',0],['combined-method',3]]],
-    Funcs = [[defun,name,[],?Q(Fm)],
+    Funcs = [[defun,name,[],?Q(Flav)],
 	     [defun,'instance-variables',[],?Q(Ivars)],
+	     [defun,'component-sequence',[],?Q(Seq)],
 	     [defun,'combined-methods',[],?Q(Cmeths)]],
     Combs = combined_methods(Cmeths, Flav),
     Combined = [defun,'combined-method'|Combs],
     Forms = [Mod,Combined|Funcs],
-    lfe_io:format("~p\n", [Forms]),
+    %%lfe_io:format("~p\n", [Forms]),
     Source = lists:concat([Flav,".lfe"]),
     {ok,_,Binary,_} = lfe_comp:forms(Forms, [report,return,{source,Source}]),
     code:load_binary(Fm, lists:concat([Fm,".lfe"]), Binary).
@@ -88,13 +113,11 @@ make_comp_sequence(Seq) ->
     add_comps(Seq, []).
 
 add_comps([F|Fs], Seq0) ->
-    case lists:member(F, Seq0) of
-	true ->
-	    add_comps(Fs, Seq0);
-	false ->
-	    Seq1 = add_comp(F, Seq0),		%Add this flavors components
-	    add_comps(Fs, Seq1)
-    end;
+    Seq1 = case lists:member(F, Seq0) of
+	       true -> Seq0;
+	       false -> add_comp(F, Seq0)       %Add this flavors components
+	   end,
+    add_comps(Fs, Seq1);
 add_comps([], Seq) -> Seq.
 
 add_comp(F, Seq) ->
@@ -102,15 +125,25 @@ add_comp(F, Seq) ->
     Cs = Fc:components(),			%Flavor components
     add_comps(Cs, Seq ++ [F]).			%We come before our components
 
-%% Get the instance variables. Use an ordered set to keep the variables.
+%% get_instance_vars(Sequence) -> Ivars.
+
+%%  Get the instance variables. Use an ordered set to keep the
+%%  variables. The instance variables or sorted!
 
 get_ivars(Seq) -> get_ivars(Seq, ordsets:new()).
 
 get_ivars([F|Fs], Ivars) ->
     Fc = flavors_lib:core_name(F),
-    Fvs = ordsets:to_list(Fc:'instance-variables'()),
-    get_ivars(Fs, ordsets:union(Fvs, Ivars));
+    Fvs = Fc:'normalised-instance-variables'(),
+    get_ivars(Fs, merge_ivars(Fvs, Ivars));
 get_ivars([], Ivars) -> Ivars.
+
+merge_ivars([[V,I]|Ivs], Ivars) ->
+    case lfe_lib:assoc(V, Ivars) of
+	[] -> merge_ivars(Ivs, ordsets:add_element([V,I], Ivars));
+	_ -> merge_ivars(Ivs, Ivars)
+    end;
+merge_ivars([], Ivars) -> Ivars.
 
 %% Get the methods.
 
@@ -124,18 +157,11 @@ get_methods([], Meths) -> Meths.
 
 get_flavor_methods(F) ->
     Fc = flavors_lib:core_name(F),
-    Os = Fc:options(),
+    Os = Fc:'normalised-options'(),
     Ms = Fc:methods(),
-    Is = Fc:'instance-variables'(),
-    Gs = case lists:member('gettable-instance-variables', Os) of
-	     true -> Is;
-	     false -> []
-	 end,
-    Ss = case lists:member('settable-instance-variables', Os) of
-	     true -> [ list_to_atom(lists:concat(["set-",I])) || I <- Is ];
-	     false -> []
-	 end,
-    Ms ++ Gs ++ Ss.    
+    [_|Gs] = lfe_lib:assoc('gettable-instance-variables', Os),
+    [_|Ss] = lfe_lib:assoc('settable-instance-variables', Os),
+    Ms ++ Gs ++ [ list_to_atom(lists:concat(["set-",I])) || I <- Ss ].
 
 add_methods([Fm|Fms], Flav, Meths) ->
     case lists:keymember(Fm, 1, Meths) of

@@ -43,8 +43,17 @@ defining flavors:
 (endflavor <flavor-name>)               ;Must be last after the methods
 ```
 
-Currently we support the options ``gettable-instance-variables``,
-``settable-instance-variables`` and ``inittable-instance-variables``
+Currently we support the options:
+
+- ``gettable-instance-variables`` completely supported
+- ``settable-instance-variables``
+- ``inittable-instance-variables``
+- ``required-instance-variables`` not yet used
+- ``required-methods``
+- ``required-flavors``
+- ``no-vanilla-flavor``
+- ``abstract-flavor``
+
 and the standard method types ``before`` and ``after`` for the
 daemons.
 
