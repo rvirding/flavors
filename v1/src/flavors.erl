@@ -61,8 +61,12 @@ plist_get(X, [_,_|Plist]) -> plist_get(X, Plist);
 plist_get(_, []) -> error.
 
 make_load_module(Flav, Fm, Fc) ->
+    Nopts = Fc:'normalised-options'(),
+    %% Generate error if abstract flavor.
+    lists:member('abstract-flavor', Nopts) andalso
+	error({'abstract-flavor',Flav}),
     %% Do we want the vanilla falvor
-    Van = case lists:member('no-vanilla-flavor', Fc:'normalised-options'()) of
+    Van = case lists:member('no-vanilla-flavor', Nopts) of
 	      true -> [];
 	      false -> ['vanilla-flavor']
 	  end,
