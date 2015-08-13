@@ -31,21 +31,37 @@
 
 -module('vanilla-flavor-flavor-core').
 
--export([name/0,'instance-variables'/0,'normalised-instance-variables'/0,
-	 components/0,options/0,'normalised-options'/0,
+-export([name/0,'instance-variables'/0,components/0,options/0,
 	 methods/0,daemons/1]).
-
+-export(['gettable-instance-variables'/0,
+	 'settable-instance-variables'/0,
+	 'inittable-instance-variables'/0,
+	 plist/0]).
+-export(['normalised-instance-variables'/0,'normalised-options'/0]).
 -export(['primary-method'/3,'before-daemon'/3,'after-daemon'/3]).
 
 name() -> 'vanilla-flavor'.
 
 'instance-variables'() -> [].
 
-'normalised-instance-variables'() -> [].
-
 components() -> [].
 
 options() -> [].
+
+methods() -> ['print-self',set].
+
+daemons(before) -> [];
+daemons('after') -> [].
+
+'gettable-instance-variables'() -> [].
+
+'settable-instance-variables'() -> [].
+
+'inittable-instance-variables'() -> [].
+
+plist() -> [{'abstract-flavor',true}].
+
+'normalised-instance-variables'() -> [].
 
 'normalised-options'() ->
     [['gettable-instance-variables'],
@@ -56,11 +72,6 @@ options() -> [].
      ['required-flavors'],
      'abstract-flavor'
     ].
-
-methods() -> ['print-self',set].
-
-daemons(before) -> [];
-daemons('after') -> [].
 
 'primary-method'('print-self', Self, [Stream]) ->
     lfe_io:print(Stream, Self),

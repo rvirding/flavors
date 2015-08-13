@@ -25,8 +25,11 @@
 
 (defmacro endflavor (name) (flavors_comp:endflavor name))
 
+;; These macros basically implement variable arity functions.
+
 (defmacro make-instance
-  (`(,name . ,opts) `(flavors:instantiate-flavor ,name (list ,@(flavors:make-init-plist opts)))))
+  (`(,name . ,opts)
+   `(flavors:instantiate-flavor ,name (list ,@opts))))
 
 (defmacro send
-  (`(,self ,message . ,args) `(flavors:send ,self ',message (list ,@args))))
+  (`(,self ,message . ,args) `(flavors:send ,self ,message (list ,@args))))

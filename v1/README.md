@@ -45,10 +45,10 @@ defining flavors:
 
 Currently we support the options:
 
-- ``gettable-instance-variables`` completely supported
+- ``gettable-instance-variables``
 - ``settable-instance-variables``
 - ``inittable-instance-variables``
-- ``required-instance-variables`` not yet used
+- ``required-instance-variables``
 - ``required-methods``
 - ``required-flavors``
 - ``no-vanilla-flavor``
@@ -67,7 +67,7 @@ For using the flavor definitions there is:
 ```
 
 A primary method **MUST** return the tuple ``#(<return-value>
-<updated-instance-map>)`` and a daemon methods **MUST** return only
+<updated-instance-map>)`` and a daemon method **MUST** return only
 the updated instance map. See the example flavors ``f1`` and ``f2``.
 
 When defining a flavor the component sequence is built as it should be
@@ -95,9 +95,10 @@ compiling and using them:
     (options 0)
     (methods 0)
     (daemons 1))
-   (export (primary-method 3) (before-daemon 3) (after-daemon 3)))
+   (export
+    (gettable-instance-variables 0)
 ...
- (defun methods () '(one two))
+ (defun methods () '(set-y one two))
  (defun daemons (('before) '(set-a one two)) (('after) '(set-y one))))
 #(module ())
 > (c "test/f2" '(to_exp return))
@@ -109,7 +110,8 @@ compiling and using them:
     (options 0)
     (methods 0)
     (daemons 1))
-   (export (primary-method 3) (before-daemon 3) (after-daemon 3)))
+   (export
+    (gettable-instance-variables 0)
 ...
  (defun methods () '(three))
  (defun daemons (('before) '(set-y)) (('after) '(set-y))))
@@ -124,30 +126,29 @@ compiling and using them:
     (combined-methods 0)
     (combined-method 3)))
 ...
-     #(set-b f2 () ())
+     #(set-q f2 () ())
      #(print-self vanilla-flavor () ())
      #(set vanilla-flavor () ()))))
-#M(*flavor-module* f1-flavor a undefined b undefined x undefined
-   y undefined z undefined)
+#M(*flavor-module* f1-flavor a undefined g undefined m 42 q undefined
+   share f1 time #(1439 488270 340941) x undefined y undefined
+   z undefined)
 > (send f1 'one 12 13 14)
-f1 before one #M(*flavor-module* f1-flavor a undefined b undefined
+f1 before one #M(*flavor-module* f1-flavor a undefined g undefined
+                 m 42 q undefined share f1 time #(1439 488270 340941)
                  x undefined y undefined z undefined)
-f1 after one #M(*flavor-module* f1-flavor a undefined b undefined
+f1 after one #M(*flavor-module* f1-flavor a undefined g undefined
+                m 42 q undefined share f1 time #(1439 488270 340941)
                 x undefined y undefined z undefined)
 #(39
-  #M(*flavor-module* f1-flavor a undefined b undefined x undefined
+  #M(*flavor-module* f1-flavor a undefined g undefined m 42
+     q undefined share f1 time #(1439 488270 340941) x undefined
      y undefined z undefined))
 > (send f1 'set-y 42)
-f2 before set-y #M(*flavor-module* f1-flavor a undefined b undefined
-                   x undefined y undefined z undefined)
-f2 after set-y #M(*flavor-module* f1-flavor a undefined b undefined
-                  x undefined y 42 z undefined)
-f1 after set-y #M(*flavor-module* f1-flavor a undefined b undefined
-                  x undefined y 42 z undefined)
-#(ok
-  #M(*flavor-module* f1-flavor a undefined b undefined x undefined
-     y 42 z undefined))
 ```
+
+For more examples try compiling the flavors ``foo``, ``foo-base``,
+``foo-mixin`` and ``bar-mixin`` and the generating an instance of the
+flavor ``foo``.
 
 Yes, this is still an experiment and the *-flavor-core* and *-flavor*
 modules code are printed out even though the LFE files are never
