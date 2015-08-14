@@ -1,10 +1,14 @@
 (include-file "include/flavors.lfe")
 
-(defflavor f1 (a (m  42) z (share 'f1))
+(defflavor f1 (a (m  42) z (share 'f1) x y)
   (f2)
   gettable-instance-variables
-  (settable-instance-variables a m z)	;share is not settable
+  (settable-instance-variables a m z)   ;share is not settable
   inittable-instance-variables)
+
+;; Comment this out to test required-methods.
+(defmethod (f1 set-y) (v)
+  (tuple 'ok (mupd self 'y v)))
 
 (defmethod (f1 after set-y) (v)
   (lfe_io:format "f1 after set-y ~p\n" (list self))

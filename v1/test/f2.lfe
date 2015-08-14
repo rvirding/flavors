@@ -3,8 +3,11 @@
 (defflavor f2 (g q (time (now)) (share 'f2))
   ()
   gettable-instance-variables
-  (settable-instance-variables g q)	;share is not settable
-  inittable-instance-variables)
+  (settable-instance-variables g q)     ;share is not settable
+  inittable-instance-variables
+  (required-instance-variables x y)
+  (required-methods set-y)
+  abstract-flavor)
 
 (defmethod (f2 before set-y) (v)
   (lfe_io:format "f2 before set-y ~p\n" (list self))
