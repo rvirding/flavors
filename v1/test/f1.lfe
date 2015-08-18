@@ -1,7 +1,7 @@
 (include-file "include/flavors.lfe")
 
 (defflavor f1 (a (m  42) z (share 'f1) x y)
-  (f2)
+           (f2)
   gettable-instance-variables
   (settable-instance-variables a m z)   ;share is not settable
   inittable-instance-variables)
@@ -22,18 +22,22 @@
   (tuple (+ x y z) self))
 
 (defmethod (f1 before one) (x y z)
-  (lfe_io:format "f1 before one ~p\n" (list self))
+  (print "f1 before one ~p\n" (list self))
   self)
 
 (defmethod (f1 after one) (x y z)
-  (lfe_io:format "f1 after one ~p\n" (list self))
+  (print "f1 after one ~p\n" (list self))
   self)
 
 (defmethod (f1 two) (x y z)
   (tuple (* x y z) self))
 
 (defmethod (f1 before two) (x y z)
-  (lfe_io:format "f1 before two ~p\n" (list self))
+  (print "f1 before two ~p\n" (list self))
   self)
+
+;; A local function called by the methods.
+(defun print (f as)
+  (lfe_io:format f as))
 
 (endflavor f1)

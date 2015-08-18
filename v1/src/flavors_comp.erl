@@ -22,6 +22,9 @@
 
 -define(Q(E), [quote,E]).                       %We do a lot of quoting
 
+-define(DBG_PRINT(Format, Args), ok).
+%%-define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
+
 %% The flavor record.
 -record(flavor, {name,                          %Flavor name
                  ivars=[],                      %Local instance variables
@@ -44,6 +47,12 @@
 -record(collect, {vars=[],comps=[],
                   gets=[],sets=[],inits=[],
                   reqi=[],reqm=[],reqf=[],plist=[]}).
+
+%% defflavor(Name, InstanceVariables, Components, Options) ->
+%%     ModuleDefinition.
+%%  Return base flavor module definition. This intended to be run as a
+%%  macro and together with defmethod and endflavor expands to code
+%%  which defines the flavor core.
 
 defflavor(Name, IVars, Comps, Opts) ->
     %% Check arguments, generate error if faulty.
@@ -71,9 +80,43 @@ defflavor(Name, IVars, Comps, Opts) ->
                  req_flavs=C3#collect.reqf,
                  plist=C3#collect.plist
                 },
-    lfe_io:format("~p\n", [Fl]),                %Debug print
-    put(flavor_core, Fl),
-    [progn].
+    ?DBG_PRINT("~p\n", [Fl]),
+    Cname = flavors_lib:core_name(Fl#flavor.name),
+    %% The flavor module definition,
+    Mod = [defmodule,Cname,
+           [export,                             %Arguments to defflavor
+            [name,0],
+            ['instance-variables',0],
+            [components,0],
+            [options,0],
+            [methods,0],[daemons,1]],
+           [export,                             %Parse options
+            ['gettable-instance-variables',0],
+            ['settable-instance-variables',0],
+            ['inittable-instance-variables',0],
+            ['plist',0]],
+           %%[export,
+           %% ['normalised-instance-variables',0],
+           %% ['normalised-options',0]],
+           [export,                             %Methods
+            ['primary-method',3],
+            ['before-daemon',3],
+            ['after-daemon',3]]],
+    %% The standard flavor functions.
+    Funcs = [[defun,name,[],?Q(Name)],
+             [defun,'instance-variables',[],?Q(Fl#flavor.ivars)],
+             [defun,components,[],?Q(Fl#flavor.comps)],
+             [defun,options,[],?Q(Fl#flavor.options)],
+             [defun,'gettable-instance-variables',[],?Q(Fl#flavor.gettables)],
+             [defun,'settable-instance-variables',[],?Q(Fl#flavor.settables)],
+             [defun,'inittable-instance-variables',[],?Q(Fl#flavor.inittables)],
+             [defun,'plist',[],?Q(Fl#flavor.plist)]],
+             %%[defun,'normalised-instance-variables',[],?Q(Fl#flavor.nvars)],
+             %%[defun,'normalised-options',[],?Q(Fl#flavor.noptions)],
+    ?DBG_PRINT("~p\n", [[Mod|Funcs]]),
+    put(flavor_core, Fl),                       %Save the flavor info
+    %% Return the flavor definition and standard functions.
+    [progn,Mod|Funcs].
 
 %% check_name(Name) -> true.
 %% check_instance_vars(Name, Vars) -> [VarName].
@@ -166,43 +209,15 @@ check_daemon(_, _, 'after', _) -> ok;
 check_daemon(Flav, _, D, _) -> error({'illegal-daemon-type',Flav,D}).
 
 %% endflavor(FlavorName) -> [progn].
-%%  This builds the actual flavor definition from the definition and
-%%  the modules.
+%%  Return the flavor method definitions. This intended to be run as a
+%%  macro and together with defflavor and defmethod expands to code
+%%  which defines the flavor core.
 
 endflavor(Name) ->
     Fl = erase(flavor_core),                    %Get and erase flavor_core
-    lfe_io:format("~p\n", [Fl]),                %Debug print
-    Cname = flavors_lib:core_name(Fl#flavor.name),
-    Mod = [defmodule,Cname,
-           [export,                             %Arguments to defflavor
-            [name,0],
-            ['instance-variables',0],
-            [components,0],
-            [options,0],
-            [methods,0],[daemons,1]],
-           [export,                             %Parse options
-            ['gettable-instance-variables',0],
-            ['settable-instance-variables',0],
-            ['inittable-instance-variables',0],
-            ['plist',0]],
-           %%[export,
-           %% ['normalised-instance-variables',0],
-           %% ['normalised-options',0]],
-           [export,                             %Methods
-            ['primary-method',3],
-            ['before-daemon',3],
-            ['after-daemon',3]]],
-    Funcs = [[defun,name,[],?Q(Name)],
-             [defun,'instance-variables',[],?Q(Fl#flavor.ivars)],
-             [defun,components,[],?Q(Fl#flavor.comps)],
-             [defun,options,[],?Q(Fl#flavor.options)],
-             [defun,'gettable-instance-variables',[],?Q(Fl#flavor.gettables)],
-             [defun,'settable-instance-variables',[],?Q(Fl#flavor.settables)],
-             [defun,'inittable-instance-variables',[],?Q(Fl#flavor.inittables)],
-             [defun,'plist',[],?Q(Fl#flavor.plist)],
-             %%[defun,'normalised-instance-variables',[],?Q(Fl#flavor.nvars)],
-             %%[defun,'normalised-options',[],?Q(Fl#flavor.noptions)],
-             [defun,methods,[],
+    ?DBG_PRINT("~p\n", [Fl]),
+    %% The method/daemon listing functions.
+    Funcs = [[defun,methods,[],
               ?Q([ M || {M,_} <- Fl#flavor.methods ])],
              [defun,daemons,
               [[?Q(before)],?Q([ D || {D,before,_} <- Fl#flavor.daemons])],
@@ -215,14 +230,13 @@ endflavor(Name) ->
     Before = [defun,'before-daemon'|Befs],
     Afts = daemons(Fl#flavor.daemons, 'after', Name),
     After = [defun,'after-daemon'|Afts],
-    Forms = [Mod,Primary,Before,After|Funcs],
-    lfe_io:format("~p\n", [Forms]),             %Debug print
-    Source = lists:concat([Fl#flavor.name,".lfe"]),
-    {ok,_,Binary} = lfe_comp:forms(Forms, [verbose,report,{source,Source}]),
-    file:write_file(lists:concat([Cname,".beam"]), Binary),
-    %%Ret = lfe_comp:forms(Forms, [to_core,verbose,report,{source,Source}]),
-    %%file:write_file(lists:concat([Cname,".beam"]), io_lib:format("~p\n", [Ret])),
-    [progn].
+    ?DBG_PRINT("~p\n", [[Primary,Before,After|Funcs]]),
+    %% Return the flavor functions to be compiled.
+    [progn|Funcs ++ [Primary,Before,After]].
+
+    %% Source = lists:concat([Fl#flavor.name,".lfe"]),
+    %% {ok,_,Binary} = lfe_comp:forms(Forms, [verbose,report,{source,Source}]),
+    %% file:write_file(lists:concat([Cname,".beam"]), Binary),
 
 methods(Ms, Flav) ->
     E = 'undefined-primary-method',

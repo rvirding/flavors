@@ -22,6 +22,9 @@
 
 -define(Q(E), [quote,E]).                       %We do a lot of quoting.
 
+-define(DBG_PRINT(Format, Args), ok).
+%%-define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
+
 %% send(Instance, Method, Args) -> {Result,Instance}.
 
 send(#{'*flavor-module*' := Fm}=Self, Meth, Args) ->
@@ -80,7 +83,7 @@ make_load_module(Flav, Fm, Fc) ->
     %% Define the flavor module.
     Ivars = get_instance_vars(Seq),
     Methods = get_methods(Seq),
-    %%lfe_io:format("m: ~p\n", [Methods]),
+    ?DBG_PRINT("m: ~p\n", [Methods]),
     Cmethods = get_comb_methods(Methods, Seq),
     Mod = [defmodule,Fm,
            [export,
@@ -96,7 +99,7 @@ make_load_module(Flav, Fm, Fc) ->
     Combs = combined_method_clauses(Cmethods, Flav),
     Combined = [defun,'combined-method'|Combs],
     Forms = [Mod,Combined|Funcs],
-    lfe_io:format("~p\n", [Forms]),
+    ?DBG_PRINT("~p\n", [Forms]),
     Source = lists:concat([Flav,".lfe"]),
     {ok,_,Binary,_} = lfe_comp:forms(Forms, [report,return,{source,Source}]),
     code:load_binary(Fm, lists:concat([Fm,".lfe"]), Binary).
@@ -269,8 +272,8 @@ combined_method_clauses(Cmeths, Flav) ->
         [[[m,'_',as],[error,[tuple,?Q(E),?Q(Flav),m,[length,as]]]]].
 
 combined_method_clause({M,F,Bs,As}) ->
-    Acs = [ call_after_method(M, Af) || Af <- As ],
     Bcs = [ call_before_method(M, Bf) || Bf <- Bs ],
+    Acs = [ call_after_method(M, Af) || Af <- As ],
     Pfc = flavors_lib:core_name(F),
     Pc = [[tuple,ret,self],[':',Pfc,'primary-method',?Q(M),self,args]],
     [[?Q(M),self,args],
@@ -280,6 +283,6 @@ call_before_method(M, Bf) ->
     Bfc = flavors_lib:core_name(Bf),
     [self,[':',Bfc,'before-daemon',?Q(M),self,args]].
 
-call_after_method(M, Bf) ->
-    Bfc = flavors_lib:core_name(Bf),
-    [self,[':',Bfc,'after-daemon',?Q(M),self,args]].
+call_after_method(M, Af) ->
+    Afc = flavors_lib:core_name(Af),
+    [self,[':',Afc,'after-daemon',?Q(M),self,args]].

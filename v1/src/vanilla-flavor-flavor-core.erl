@@ -76,6 +76,9 @@ plist() -> [{'abstract-flavor',true}].
 'primary-method'('print-self', Self, [Stream]) ->
     lfe_io:print(Stream, Self),
     {ok,Self};
+'primary-method'('print-self', Self, []) ->
+    lfe_io:print(Self),
+    {ok,Self};
 'primary-method'(set, Self, [I,V]) ->
     {ok,maps:update(I, V, Self)};
 'primary-method'(M, _, _) ->
