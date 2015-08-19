@@ -266,7 +266,7 @@ gettable(#flavor{gettables=Gs}) ->
 settable(#flavor{settables=Ss}) ->
     Set = fun (Var) ->
                   M = list_to_atom(lists:concat(["set-",Var])),
-                  B = [[tuple,?Q(ok),[mupd,self,?Q(Var),val]]],
+                  B = [[tuple,val,[mupd,self,?Q(Var),val]]],
                   method_clause(M, [val], B)
           end,
     [ Set(Var) || Var <- Ss ].
