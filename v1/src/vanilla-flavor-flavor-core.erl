@@ -24,6 +24,10 @@
 %%   (lfe_io:print stream self)
 %%   (tuple 'ok self))
 %%
+%% (defmethod (vanilla-flavor print-self) ()
+%%   (lfe_io:print self)
+%%   (tuple 'ok self))
+%%
 %% (defmethod (vanilla-flavor set) (var val)
 %%   (tuple 'ok (maps:update self var val)))
 %%
@@ -37,7 +41,7 @@
 	 'settable-instance-variables'/0,
 	 'inittable-instance-variables'/0,
 	 plist/0]).
--export(['normalised-instance-variables'/0,'normalised-options'/0]).
+%%-export(['normalised-instance-variables'/0,'normalised-options'/0]).
 -export(['primary-method'/3,'before-daemon'/3,'after-daemon'/3]).
 
 name() -> 'vanilla-flavor'.
@@ -46,7 +50,7 @@ name() -> 'vanilla-flavor'.
 
 components() -> [].
 
-options() -> [].
+options() -> ['abstract-flavor'].
 
 methods() -> ['print-self',set].
 
@@ -61,17 +65,17 @@ daemons('after') -> [].
 
 plist() -> [{'abstract-flavor',true}].
 
-'normalised-instance-variables'() -> [].
+%% 'normalised-instance-variables'() -> [].
 
-'normalised-options'() ->
-    [['gettable-instance-variables'],
-     ['settable-instance-variables'],
-     ['inittable-instance-variables'],
-     ['required-instance-variables'],
-     ['required-methods'],
-     ['required-flavors'],
-     'abstract-flavor'
-    ].
+%% 'normalised-options'() ->
+%%     [['gettable-instance-variables'],
+%%      ['settable-instance-variables'],
+%%      ['inittable-instance-variables'],
+%%      ['required-instance-variables'],
+%%      ['required-methods'],
+%%      ['required-flavors'],
+%%      'abstract-flavor'
+%%     ].
 
 'primary-method'('print-self', Self, [Stream]) ->
     lfe_io:print(Stream, Self),
