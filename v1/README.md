@@ -113,7 +113,7 @@ f2 after set-y #M(*flavor-module* f1-flavor a undefined g undefined
 f1 after set-y #M(*flavor-module* f1-flavor a undefined g undefined
                   m 42 q undefined share f1
                   time #(1439 913945 374362) x 42 y 99 z undefined)
-#(ok
+#(99
   #M(*flavor-module* f1-flavor a undefined g undefined m 42
      q undefined share f1 time #(1439 913945 374362) x 42 y 99
      z undefined))
