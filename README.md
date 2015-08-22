@@ -28,4 +28,14 @@ structs on steroids and is probably not what most people would expect.
 
 ### v2
 
-This version will be process based.
+This version uses processes to model flavor instances. The flavor
+instance variables are kept in a map and the methods explicitly handle
+this map. This make the instances behave more like is expected but the
+implementation of the methods is still has a very traditional handling
+of data.
+
+Note that if you try to send a message to yourself then the instance
+process will hang, you after all just sending a synchronous message to
+yourself. This could be fixed for the special case of sending messages
+to yourself but the general problem that sends are synchronous
+messages communication remains.

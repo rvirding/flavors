@@ -1,0 +1,100 @@
+%% Copyright (c) 2015 Robert Virding
+%%
+%% Licensed under the Apache License, Version 2.0 (the "License");
+%% you may not use this file except in compliance with the License.
+%% You may obtain a copy of the License at
+%%
+%%     http://www.apache.org/licenses/LICENSE-2.0
+%%
+%% Unless required by applicable law or agreed to in writing, software
+%% distributed under the License is distributed on an "AS IS" BASIS,
+%% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+%% See the License for the specific language governing permissions and
+%% limitations under the License.
+
+%% File    : flavors_instance.erl
+%% Author  : Robert Virding
+%% Purpose : Basic LFE Flavors instance process.
+
+%% We run a gen_server to manage an flavor instance. This may be a bit
+%% overkill but it is the easiest way for the time being. When we
+%% evaluate a method we catch errors/exits/throws and send them back
+%% to the caller and generate errors there. So errors will not crash
+%% the flaovr instance but be signalled at the caller. I think this is
+%% a reasonable handling of errors.
+%%
+%% An interesting question is whether to signal exits as exits and
+%% throw throw in the caller, or just signal them as errors? Now they
+%% are all errors which is probably good enough.
+
+-module(flavors_instance).
+
+-behaviour(gen_server).
+
+-export([start/3,start_link/3,stop/1]).
+-export([send/3]).
+
+-export([init/1,terminate/2,code_change/3,
+	 handle_call/3,handle_cast/2,handle_info/2]).
+
+-record(state, {name,fm,self,ivars}).
+
+%% Management API.
+start(Flav, Fm, Opts) ->
+    gen_server:start(?MODULE, {Flav,Fm,Opts}, []).
+
+start_link(Flav, Fm, Opts) ->
+    gen_server:start_link(?MODULE, {Flav,Fm,Opts}, []).
+
+stop(Ins) ->
+    gen_server:cast(Ins, stop).
+
+%% User API.
+send(Ins, Meth, Args) ->
+    gen_server:call(Ins, {send,Meth,Args}).
+
+%% Behaviour callbacks.
+init({Flav,Fm,Opts}) ->
+    Ivars = Fm:'instance-variables'(),
+    Mlist = make_map_list(Ivars, Opts),
+    Imap = maps:from_list(Mlist),
+    {ok,#state{name=Flav,fm=Fm,ivars=Imap}}.
+
+make_map_list([{V,I}|Mlist], Opts) ->
+    Pair = case plist_get(V, Opts) of
+               {ok,I1} -> {V,I1};
+               error -> {V,lfe_eval:expr(I)}
+           end,
+    [Pair|make_map_list(Mlist, Opts)];
+make_map_list([], _) -> [].
+
+plist_get(X, [X,V|_]) -> {ok,V};
+plist_get(X, [_,_|Plist]) -> plist_get(X, Plist);
+plist_get(_, []) -> error.
+
+terminate(_, _) ->
+    ok.
+
+handle_call({send,Meth,Args}, _, #state{fm=Fm,ivars=Imap0}=St) ->
+    %% Catch errors, exits and throws and signal in the caller.
+    try
+	{Result,Imap1} = Fm:'combined-method'(Meth, Imap0, Args),
+	{reply,{ok,Result},St#state{ivars=Imap1}}
+    catch					%Catch and return
+	error:Error ->
+	    {reply,{error,Error},St};
+	exit:Exit ->
+	    {reply,{error,Exit},St};
+	throw:Thrown ->
+	    {reply,{error,{nocatch,Thrown}},St}
+    end.
+
+handle_cast(stop, St) ->
+    {stop,normal,St}.
+
+%% Unused callbacks.
+handle_info(_, St) ->
+    {noreply,St}.
+
+code_change(_, St, _) ->
+    {ok,St}.
