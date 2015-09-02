@@ -1,18 +1,18 @@
 ;; A simple LFE script to test the shape flavors with flavors V2.
 ;; Remember that there the instances refer to processes.
 
-(run "include/flavors.lfe")		;Include the flavors macros
+(run "include/flavors.lfe")             ;Include the flavors macros
 
 ;; Define two simple test functions.
 (defun test-1 ()
   (let ((scribble
-	 (list (make-instance 'rectangle 'x 10 'y 20 'width 5 'height 6)
-	       (make-instance 'circle 'x 15 'y 25 'radius 8))))
+         (list (make-instance 'rectangle 'x 10 'y 20 'width 5 'height 6)
+               (make-instance 'circle 'x 15 'y 25 'radius 8))))
     (lists:foreach (lambda (a-shape)
-		     (send a-shape 'draw)
-		     (send a-shape 'r-move-to 100 100)
-		     (send a-shape 'draw))
-		   scribble)
+                     (send a-shape 'draw)
+                     (send a-shape 'r-move-to 100 100)
+                     (send a-shape 'draw))
+                   scribble)
     scribble))
 
 (defun test-2 ()

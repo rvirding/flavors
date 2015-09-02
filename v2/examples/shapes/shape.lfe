@@ -2,21 +2,24 @@
 
 ;; Define the shape flavor.
 (defflavor shape (x y)
-	   ()
+           ()
   ;; Settables are also gettable and inittable.
   (settable-instance-variables x y))
 
 (defmethod (shape move-to) (new-x new-y)
-  (tuple 'ok (mupd self 'x new-x 'y new-y)))
+  (set 'x new-x)
+  (set 'y new-y)
+  'ok)
 
 (defmethod (shape r-move-to) (delta-x delta-y)
-  (let ((x (mref self 'x))
-	(y (mref self 'y)))
-    (tuple 'ok (mupd self 'x (+ x delta-x) 'y (+ y delta-y)))))
+  (let ((x (get 'x))
+        (y (get 'y)))
+    (set 'x (+ x delta-x))
+    (set 'y (+ y delta-y))
+    'ok))
 
 (defmethod (shape draw) ()
   (lfe_io:format "Drawing shape at (~p,~p)~n"
-		 (list (mref self 'x) (mref self 'y)))
-  (tuple 'ok self))
+                 (list (get 'x) (get 'y))))
 
 (endflavor shape)

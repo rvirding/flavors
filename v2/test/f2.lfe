@@ -10,15 +10,13 @@
   abstract-flavor)
 
 (defmethod (f2 before set-y) (v)
-  (lfe_io:format "f2 before set-y ~p\n" (list self))
-  self)
+  (lfe_io:format "f2 before set-y ~p\n" (list self)))
 
 (defmethod (f2 after set-y) (v)
-  (lfe_io:format "f2 after set-y ~p\n" (list self))
-  self)
+  (lfe_io:format "f2 after set-y ~p\n" (list self)))
 
 (defmethod (f2 three)
-  (('x x) (tuple 'ok (mupd self 'x x)))
-  (('y y) (tuple 'ok (mupd self 'y y))))
+  (('x x) (set 'x x))
+  (('y y) (set 'y y)))
 
 (endflavor f2)

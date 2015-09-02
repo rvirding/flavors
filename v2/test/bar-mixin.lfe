@@ -8,11 +8,10 @@
   abstract-flavor)
 
 (defmethod (bar-mixin before hack) ()
-  (lfe_io:format "bar-mixin, hack before ~p\n" (list self))
-  self)
+  (lfe_io:format "bar-mixin, hack before ~p\n" (list self)))
 
 (defmethod (bar-mixin hack) ()
   (lfe_io:format "bar-mixin, hack ~p\n" (list self))
-  (tuple 'bar-mixin self))
+  'bar-mixin)
 
 (endflavor bar-mixin)
