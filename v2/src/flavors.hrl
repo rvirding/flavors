@@ -12,18 +12,10 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 
-%% File    : flavors_lib.erl
+%% File    : flavors.hrl
 %% Author  : Robert Virding
-%% Purpose : Basic LFE Flavors library functions.
+%% Purpose : Common definition for flavor generators.
 
--module(flavors_lib).
+-define(Q(E), [quote,E]).                       %We do a lot of quoting.
 
--export([mod_name/1,core_name/1]).
-
--include("flavors.hrl").
-
-mod_name(Flav) ->
-    list_to_atom(lists:concat([Flav,"-flavor"])).
-
-core_name(Flav) ->
-    list_to_atom(lists:concat([Flav,"-flavor-core"])).
+-record('*flavor-instance*',{flavor,flavor_mod,instance}).

@@ -20,7 +20,7 @@
 
 -export([defflavor/4,defmethod/2,endflavor/1]).
 
--define(Q(E), [quote,E]).                       %We do a lot of quoting
+-include("flavors.hrl").
 
 -define(DBG_PRINT(Format, Args), ok).
 %%-define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
@@ -110,7 +110,16 @@ defflavor(Name, IVars, Comps, Opts) ->
              [defun,'gettable-instance-variables',[],?Q(Fl#flavor.gettables)],
              [defun,'settable-instance-variables',[],?Q(Fl#flavor.settables)],
              [defun,'inittable-instance-variables',[],?Q(Fl#flavor.inittables)],
-             [defun,'plist',[],?Q(Fl#flavor.plist)]],
+             [defun,'plist',[],?Q(Fl#flavor.plist)],
+             %% Getting and setting instance variables.
+             [defun,get,[var],
+              [':',maps,get,var,[':',erlang,get,?Q('instance-variables')]]],
+             [defun,set,[var,val],
+              ['let*',[[ivars,[':',erlang,get,?Q('instance-variables')]],
+                       [ivars,[':',maps,update,var,val,ivars]]],
+               [':',erlang,put,?Q('instance-variables'),ivars],
+               val]]
+            ],
              %%[defun,'normalised-instance-variables',[],?Q(Fl#flavor.nvars)],
              %%[defun,'normalised-options',[],?Q(Fl#flavor.noptions)],
     ?DBG_PRINT("~p\n", [[Mod|Funcs]]),
@@ -258,7 +267,7 @@ method_clause(M, As, Body) -> [[?Q(M),self,[list|As]] | Body].
 
 gettable(#flavor{gettables=Gs}) ->
     Get = fun (Var) ->
-                  B = [[tuple,[mref,self,?Q(Var)],self]],
+                  B = [[get,?Q(Var)]],
                   method_clause(Var, [], B)
           end,
     [ Get(Var) || Var <- Gs ].
@@ -266,7 +275,7 @@ gettable(#flavor{gettables=Gs}) ->
 settable(#flavor{settables=Ss}) ->
     Set = fun (Var) ->
                   M = list_to_atom(lists:concat(["set-",Var])),
-                  B = [[tuple,val,[mupd,self,?Q(Var),val]]],
+                  B = [[set,?Q(Var),val]],
                   method_clause(M, [val], B)
           end,
     [ Set(Var) || Var <- Ss ].

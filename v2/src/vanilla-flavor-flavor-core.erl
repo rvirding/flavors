@@ -35,12 +35,14 @@
 
 -module('vanilla-flavor-flavor-core').
 
+-compile({no_auto_import,[get/0,get/1]}).
+
 -export([name/0,'instance-variables'/0,components/0,options/0,
-	 methods/0,daemons/1]).
+         methods/0,daemons/1]).
 -export(['gettable-instance-variables'/0,
-	 'settable-instance-variables'/0,
-	 'inittable-instance-variables'/0,
-	 plist/0]).
+         'settable-instance-variables'/0,
+         'inittable-instance-variables'/0,
+         plist/0]).
 %%-export(['normalised-instance-variables'/0,'normalised-options'/0]).
 -export(['primary-method'/3,'before-daemon'/3,'after-daemon'/3]).
 
@@ -77,14 +79,27 @@ plist() -> [{'abstract-flavor',true}].
 %%      'abstract-flavor'
 %%     ].
 
+-compile({nowarn_unused_function, [get/0,get/1,set/2]}).
+
+get() -> erlang:get('instance-variables').
+
+get(Var) ->
+    maps:get(Var, erlang:get('instance-variables')).
+
+set(Var, Val) ->
+    Ivars0 = erlang:get('instance-variables'),
+    Ivars1 = maps:update(Var, Val, Ivars0),
+    erlang:put('instance-variables', Ivars1),
+    Val.
+
 'primary-method'('print-self', Self, [Stream]) ->
-    lfe_io:print(Stream, Self),
-    {ok,Self};
+    lfe_io:print(Stream, {Self,get()}),
+    ok;
 'primary-method'('print-self', Self, []) ->
-    lfe_io:print(Self),
-    {ok,Self};
-'primary-method'(set, Self, [I,V]) ->
-    {ok,maps:update(I, V, Self)};
+    lfe_io:print({Self,get()}),
+    ok;
+'primary-method'(set, _, [I,V]) ->
+    set(I, V);
 'primary-method'(M, _, _) ->
     error({'undefined-primary-method','vanilla-flavor',M}).
 

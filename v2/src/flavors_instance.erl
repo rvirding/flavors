@@ -35,9 +35,11 @@
 -export([send/3]).
 
 -export([init/1,terminate/2,code_change/3,
-	 handle_call/3,handle_cast/2,handle_info/2]).
+         handle_call/3,handle_cast/2,handle_info/2]).
 
--record(state, {name,fm,self,ivars}).
+-include("flavors.hrl").
+
+-record(state, {name,fm,self,ivars=none}).
 
 %% Management API.
 start(Flav, Fm, Opts) ->
@@ -58,7 +60,11 @@ init({Flav,Fm,Opts}) ->
     Ivars = Fm:'instance-variables'(),
     Mlist = make_map_list(Ivars, Opts),
     Imap = maps:from_list(Mlist),
-    {ok,#state{name=Flav,fm=Fm,ivars=Imap}}.
+    erlang:put('instance-variables', Imap),
+    Self = #'*flavor-instance*'{flavor=Flav,
+                                flavor_mod=Fm,
+                                instance=self()},
+    {ok,#state{name=Flav,fm=Fm,self=Self}}.
 
 make_map_list([{V,I}|Mlist], Opts) ->
     Pair = case plist_get(V, Opts) of
@@ -75,18 +81,18 @@ plist_get(_, []) -> error.
 terminate(_, _) ->
     ok.
 
-handle_call({send,Meth,Args}, _, #state{fm=Fm,ivars=Imap0}=St) ->
+handle_call({send,Meth,Args}, _, #state{fm=Fm,self=Self}=St) ->
     %% Catch errors, exits and throws and signal in the caller.
     try
-	{Result,Imap1} = Fm:'combined-method'(Meth, Imap0, Args),
-	{reply,{ok,Result},St#state{ivars=Imap1}}
-    catch					%Catch and return
-	error:Error ->
-	    {reply,{error,Error},St};
-	exit:Exit ->
-	    {reply,{error,Exit},St};
-	throw:Thrown ->
-	    {reply,{error,{nocatch,Thrown}},St}
+        Result = Fm:'combined-method'(Meth, Self, Args),
+        {reply,{ok,Result},St}
+    catch                                       %Catch and return
+        error:Error ->
+            {reply,{error,Error},St};
+        exit:Exit ->
+            {reply,{error,Exit},St};
+        throw:Thrown ->
+            {reply,{error,{nocatch,Thrown}},St}
     end.
 
 handle_cast(stop, St) ->

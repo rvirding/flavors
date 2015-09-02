@@ -20,10 +20,10 @@
 
 -export(['instantiate-flavor'/2,send/3]).
 
--define(Q(E), [quote,E]).                       %We do a lot of quoting.
+-include("flavors.hrl").
 
--define(DBG_PRINT(Format, Args), ok).
-%%-define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
+%%-define(DBG_PRINT(Format, Args), ok).
+-define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
 
 %% send(Instance, Method, Args) -> {Result,Instance}.
 %%  Send a method and its arguments to be evaluated by flavor
@@ -33,8 +33,10 @@
 
 send({'*flavor-instance*',_,_,Pid}, Meth, Args) ->
     case flavors_instance:send(Pid, Meth, Args) of
-	{ok,Res} -> Res;
-	{error,Error} -> error(Error)		%Resignal error
+        {ok,Res} -> Res;
+        {error,Error} -> error(Error);          %Resignal error
+        {exit,Exit} -> exit(Exit);              %Resignal exit
+        {throw,Value} -> throw(Value)           %Rethrow value
     end;
 send(_, _, _) ->
     error(flavor_instance).
@@ -48,7 +50,9 @@ send(_, _, _) ->
     erlang:module_loaded(Fm) orelse make_load_module(Flav, Fm, Fc),
     %% Now make the instance.
     {ok,Inst} = flavors_instance:start(Flav, Fm, Opts),
-    {'*flavor-instance*',Flav,Fm,Inst}.
+    #'*flavor-instance*'{flavor=Flav,
+                         flavor_mod=Fm,
+                         instance=Inst}.
 
 %% make_load_module(Flavor, FlavorModule, FlavorCore) -> {module,FlavorModule}.
 %%  Build a flavor module, compile it and finally load it. This module
@@ -90,8 +94,17 @@ make_load_module(Flav, Fm, Fc) ->
     Forms = [Mod,Combined|Funcs],
     ?DBG_PRINT("~p\n", [Forms]),
     Source = lists:concat([Flav,".lfe"]),
-    {ok,_,Binary,_} = lfe_comp:forms(Forms, [report,return,{source,Source}]),
-    code:load_binary(Fm, lists:concat([Fm,".lfe"]), Binary).
+    %% Old and new style module compilation.
+    case lfe_comp:forms(Forms, [report,return,{source,Source}]) of
+        {ok,Bins,_} ->                          %New style
+            Load = fun ({ok,M,Bin,_}) ->
+                           Bfm = flavors_lib:mod_name(M),
+                           code:load_binary(Fm, lists:concat([Bfm,".lfe"]), Bin)
+                   end,
+            lists:foreach(Load, Bins);
+        {ok,_,Binary,_} ->                      %Old style
+            code:load_binary(Fm, lists:concat([Fm,".lfe"]), Binary)
+    end.
 
 %% make_comp_sequence(Flavors) -> Sequence.
 %%  Make the component sequence.
@@ -264,14 +277,16 @@ combined_method_clause({M,F,Bs,As}) ->
     Bcs = [ call_before_method(M, Bf) || Bf <- Bs ],
     Acs = [ call_after_method(M, Af) || Af <- As ],
     Pfc = flavors_lib:core_name(F),
-    Pc = [[tuple,ret,self],[':',Pfc,'primary-method',?Q(M),self,args]],
-    [[?Q(M),self,args],
-     ['let*',Bcs ++ [Pc] ++ Acs,[tuple,ret,self]]].
+    Pc = [':',Pfc,'primary-method',?Q(M),self,args],
+    PAs = if Acs =:= [] -> [Pc];                %Primary and after daemons
+             true -> [[prog1,Pc|Acs]]
+          end,
+    [[?Q(M),self,args] | Bcs ++ PAs].
 
 call_before_method(M, Bf) ->
     Bfc = flavors_lib:core_name(Bf),
-    [self,[':',Bfc,'before-daemon',?Q(M),self,args]].
+    [':',Bfc,'before-daemon',?Q(M),self,args].
 
 call_after_method(M, Af) ->
     Afc = flavors_lib:core_name(Af),
-    [self,[':',Afc,'after-daemon',?Q(M),self,args]].
+    [':',Afc,'after-daemon',?Q(M),self,args].
