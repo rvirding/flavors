@@ -42,6 +42,9 @@ send(_, _, _) ->
     error(flavor_instance).
 
 %% 'instantiate-flavor'(Flavor, OptionPlist) -> Instance.
+%%  Make a flavor instance using the Plist. If the flavor module is
+%%  not loaded then first create, compile and load it. No file is ever
+%%  created.
 
 'instantiate-flavor'(Flav, Opts) ->
     Fm = flavors_lib:mod_name(Flav),            %Name of the flavor module
@@ -77,7 +80,7 @@ make_load_module(Flav, Fm, Fc) ->
     Ivars = get_instance_vars(Seq),
     Methods = get_methods(Seq),
     ?DBG_PRINT("m: ~p\n", [Methods]),
-    Cmethods = get_comb_methods(Methods, Seq),
+    Cmethods = get_combined_methods(Methods, Seq),
     Mod = [defmodule,Fm,
            [export,
             [name,0],
@@ -89,8 +92,8 @@ make_load_module(Flav, Fm, Fc) ->
              [defun,'instance-variables',[],?Q(Ivars)],
              [defun,'component-sequence',[],?Q(Seq)],
              [defun,'combined-methods',[],?Q(Cmethods)]],
-    Combs = combined_method_clauses(Cmethods, Flav),
-    Combined = [defun,'combined-method'|Combs],
+    Cclauses = combined_method_clauses(Cmethods, Flav),
+    Combined = [defun,'combined-method'|Cclauses],
     Forms = [Mod,Combined|Funcs],
     ?DBG_PRINT("~p\n", [Forms]),
     Source = lists:concat([Flav,".lfe"]),
@@ -107,13 +110,15 @@ make_load_module(Flav, Fm, Fc) ->
     end.
 
 %% make_comp_sequence(Flavors) -> Sequence.
-%%  Make the component sequence.
+%%  Make the component sequence. The resultant component sequence is a
+%%  list of #(flavor flavor-core) and is always kept in order so all
+%%  new flavors are added to the end of the sequence list.
 
 make_comp_sequence(Seq) ->
     add_comps(Seq, []).
 
 add_comps([F|Fs], Seq0) ->
-    Seq1 = case lists:member(F, Seq0) of
+    Seq1 = case lists:keymember(F, 1, Seq0) of	%List of #(flav flav-core)
                true -> Seq0;
                false -> add_comp(F, Seq0)       %Add this flavors components
            end,
@@ -128,6 +133,7 @@ add_comp(F, Seq) ->
 %% check_required_ivars(Seq) -> ok.
 %% check_required_methods(Seq) -> ok.
 %% check_required_flavors(Seq) -> ok.
+%%  Check the required instance-variables/methods/flavors are defined.
 
 check_required_ivars(Seq, Flav) ->
     Vars = get_vars(Seq),
@@ -161,7 +167,7 @@ check_required_methods(Seq, Flav) ->
 get_meths(Seq) -> get_meths(Seq, ordsets:new()).
 
 get_meths([{_,Fc}|Fs], Meths) ->
-    Ms = Fc:'methods'(),
+    Ms = Fc:methods(),
     get_meths(Fs, ordsets:union(ordsets:from_list(Ms), Meths));
 get_meths([], Meths) -> Meths.
 
@@ -180,7 +186,8 @@ get_flavs(Seq) ->
 %% get_required_methods(Sequence) -> Methods.
 %% get_required_flavors(Sequence) -> Flavors.
 %%  Get the required instance-variables/methods/flavors from the
-%%  components. These have all been saved in the same way.
+%%  components. These have all been saved in the same way on the
+%%  plist.
 
 get_required_ivars(Seq) ->
     get_required(Seq, 'required-instance-variables').
@@ -217,7 +224,10 @@ merge_instance_vars({_,Fc}, Vars) ->
                     (V, Vs) -> orddict:store(V, ?Q(undefined), Vs)
                 end, Vars, Fvs).
 
-%% Get the methods.
+%% get_methods(Sequence) -> Methods.
+%%  Get the methods. The resultant Methods is a list of #(method
+%%  flavor) and is kept in order so new methods are added to the end
+%%  of the method list.
 
 get_methods(Seq) -> get_methods(Seq, []).
 
@@ -228,7 +238,7 @@ get_methods([{F,Fc}|Fs], Meths0) ->
 get_methods([], Meths) -> Meths.
 
 get_flavor_methods(Fc) ->
-    Ms = Fc:methods(),
+    Ms = Fc:methods(),				%User defined methods
     Gs = Fc:'gettable-instance-variables'(),
     Ss = Fc:'settable-instance-variables'(),
     Ms ++ Gs ++ [ list_to_atom(lists:concat(["set-",I])) || I <- Ss ].
@@ -242,14 +252,16 @@ add_methods([Fm|Fms], Flav, Meths) ->
     end;
 add_methods([], _, Meths) -> Meths.
 
-%% Get the combined methods.
+%% get_combined_methods(Methods, Seq) -> CombMethods.
+%%  Get the combined methods returning the method, flavor and
+%%  before/after daemons for each method.
 
-get_comb_methods([M|Ms], Seq) ->
-    Cm = get_comb_method(M, Seq),
-    [Cm|get_comb_methods(Ms, Seq)];
-get_comb_methods([], _) -> [].
+get_combined_methods([M|Ms], Seq) ->
+    Cm = get_combined_method(M, Seq),
+    [Cm|get_combined_methods(Ms, Seq)];
+get_combined_methods([], _) -> [].
 
-get_comb_method({M,Flav}, Seq) ->
+get_combined_method({M,Flav}, Seq) ->
     {Bds,Ads} = get_daemons(M, Seq, [], []),
     {M,Flav,Bds,Ads}.
 
@@ -264,9 +276,12 @@ get_daemons(M, [{F,Fc}|Fs], Bds0, Ads0) ->
            end,
     get_daemons(M, Fs, Bds1, Ads1);
 get_daemons(_, [], Bds, Ads) ->
-    {lists:reverse(Bds),Ads}.
+    {lists:reverse(Bds),Ads}.			%Get the order right
 
 %% combined_method_clauses(CombinedMeths, Flavor) -> Clauses.
+%%  Get the combined method clauses for a flavor. The clause for each
+%%  method will first call the before daemons, then the primary clause
+%%  and finally the after daemons.
 
 combined_method_clauses(Cmeths, Flav) ->
     E = 'undefined-method',
