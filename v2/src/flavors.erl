@@ -22,8 +22,8 @@
 
 -include("flavors.hrl").
 
-%%-define(DBG_PRINT(Format, Args), ok).
--define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
+-define(DBG_PRINT(Format, Args), ok).
+%%-define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
 
 %% send(Instance, Method, Args) -> {Result,Instance}.
 %%  Send a method and its arguments to be evaluated by flavor
@@ -31,7 +31,7 @@
 %%  and resignaled here. This seems more reasonable than crashing the
 %%  instance.
 
-send({'*flavor-instance*',_,_,Pid}, Meth, Args) ->
+send(#'flavor-instance'{instance=Pid}, Meth, Args) ->
     case flavors_instance:send(Pid, Meth, Args) of
         {ok,Res} -> Res;
         {error,Error} -> error(Error);          %Resignal error
@@ -50,9 +50,9 @@ send(_, _, _) ->
     erlang:module_loaded(Fm) orelse make_load_module(Flav, Fm, Fc),
     %% Now make the instance.
     {ok,Inst} = flavors_instance:start(Flav, Fm, Opts),
-    #'*flavor-instance*'{flavor=Flav,
-                         flavor_mod=Fm,
-                         instance=Inst}.
+    #'flavor-instance'{flavor=Flav,
+                       flavor_mod=Fm,
+                       instance=Inst}.
 
 %% make_load_module(Flavor, FlavorModule, FlavorCore) -> {module,FlavorModule}.
 %%  Build a flavor module, compile it and finally load it. This module

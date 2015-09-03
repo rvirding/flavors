@@ -18,4 +18,4 @@
 
 -define(Q(E), [quote,E]).                       %We do a lot of quoting.
 
--record('*flavor-instance*',{flavor,flavor_mod,instance}).
+-record('flavor-instance',{flavor,flavor_mod,instance}).

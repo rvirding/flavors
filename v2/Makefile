@@ -54,7 +54,6 @@ clean:
 	then rebar clean; \
 	else rm -rf $(EBINDIR)/*.beam; \
 	fi
-	rm maps.mk
 	rm -rf erl_crash.dump
 
 echo:

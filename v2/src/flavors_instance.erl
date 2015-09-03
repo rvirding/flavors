@@ -61,9 +61,9 @@ init({Flav,Fm,Opts}) ->
     Mlist = make_map_list(Ivars, Opts),
     Imap = maps:from_list(Mlist),
     erlang:put('instance-variables', Imap),
-    Self = #'*flavor-instance*'{flavor=Flav,
-                                flavor_mod=Fm,
-                                instance=self()},
+    Self = #'flavor-instance'{flavor=Flav,
+                              flavor_mod=Fm,
+                              instance=self()},
     {ok,#state{name=Flav,fm=Fm,self=Self}}.
 
 make_map_list([{V,I}|Mlist], Opts) ->
