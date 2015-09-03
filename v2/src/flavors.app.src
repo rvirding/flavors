@@ -2,6 +2,6 @@
 {application,flavors,
  [{description,"Lisp Flavoured Erlang Flavors"},
   {vsn,"0.1.0"},
-  {modules,[flavors,flavors_comp]},
+  {modules,[]},
   {registered,[]},
   {applications,[kernel,stdlib,lfe]}]}.

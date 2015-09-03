@@ -12,18 +12,18 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 
-%% File    : flavors_comp.erl
+%% File    : flavors_compile.erl
 %% Author  : Robert Virding
 %% Purpose : Basic LFE Flavors compiler.
 
--module(flavors_comp).
+-module(flavors_compile).
 
 -export([defflavor/4,defmethod/2,endflavor/1]).
 
 -include("flavors.hrl").
 
--define(DBG_PRINT(Format, Args), ok).
-%%-define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
+%%-define(DBG_PRINT(Format, Args), ok).
+-define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
 
 %% The flavor record.
 -record(flavor, {name,                          %Flavor name
@@ -123,7 +123,7 @@ defflavor(Name, IVars, Comps, Opts) ->
              %%[defun,'normalised-instance-variables',[],?Q(Fl#flavor.nvars)],
              %%[defun,'normalised-options',[],?Q(Fl#flavor.noptions)],
     ?DBG_PRINT("~p\n", [[Mod|Funcs]]),
-    put(flavor_core, Fl),                       %Save the flavor info
+    erlang:put({'flavor-core',Name}, Fl),       %Save the flavor info
     %% Return the flavor definition and standard functions.
     [progn,Mod|Funcs].
 
@@ -196,10 +196,14 @@ args_or_ivars([], Ivars) -> Ivars;              %This is already an ordset
 args_or_ivars(Args, _) -> Args.
 
 defmethod(Method, Def) ->
-    Fl0 = get(flavor_core),
+    Name = method_flavor(Method),
+    Fl0 = erlang:get({'flavor-core',Name}),
+    (Fl0 =:= undefined) andalso error({'illegal-flavor',Name}),
     Fl1 = defmethod(Method, Def, Fl0),
-    put(flavor_core, Fl1),
+    erlang:put({'flavor-core',Name}, Fl1),
     [progn].
+
+method_flavor([Flav|_]) -> Flav.
 
 defmethod([Flav,Meth], Def, #flavor{name=Flav,methods=Ms}=Fl) ->
     check_method(Flav, Meth, Def),
@@ -223,7 +227,8 @@ check_daemon(Flav, _, D, _) -> error({'illegal-daemon-type',Flav,D}).
 %%  which defines the flavor core.
 
 endflavor(Name) ->
-    Fl = erase(flavor_core),                    %Get and erase flavor_core
+    Fl = erlang:erase({'flavor-core',Name}),    %Get and erase flavor-core
+    (Fl =:= undefined) andalso error({'illegal-flavor',Name}),
     ?DBG_PRINT("~p\n", [Fl]),
     %% The method/daemon listing functions.
     Funcs = [[defun,methods,[],
@@ -231,13 +236,14 @@ endflavor(Name) ->
              [defun,daemons,
               [[?Q(before)],?Q([ D || {D,before,_} <- Fl#flavor.daemons])],
               [[?Q('after')],?Q([ D || {D,'after',_} <- Fl#flavor.daemons])]]],
-    Methods = methods(Fl#flavor.methods, Name),
-    Gets = gettable(Fl),
-    Sets = settable(Fl),
-    Primary = [defun,'primary-method'|Gets ++ Sets ++ Methods],
-    Befs = daemons(Fl#flavor.daemons, before, Name),
+    Methods = method_clauses(Fl#flavor.methods, Name),
+    Gets = gettable_clauses(Fl),
+    Sets = settable_clauses(Fl),
+    Perror = primary_error_clause(Name),
+    Primary = [defun,'primary-method'|Gets ++ Sets ++ Methods ++ [Perror]],
+    Befs = daemon_clauses(Fl#flavor.daemons, before, Name),
     Before = [defun,'before-daemon'|Befs],
-    Afts = daemons(Fl#flavor.daemons, 'after', Name),
+    Afts = daemon_clauses(Fl#flavor.daemons, 'after', Name),
     After = [defun,'after-daemon'|Afts],
     ?DBG_PRINT("~p\n", [[Primary,Before,After|Funcs]]),
     %% Return the flavor functions to be compiled.
@@ -247,13 +253,14 @@ endflavor(Name) ->
     %% {ok,_,Binary} = lfe_comp:forms(Forms, [verbose,report,{source,Source}]),
     %% file:write_file(lists:concat([Cname,".beam"]), Binary),
 
-methods(Ms, Flav) ->
+primary_error_clause(Flav) ->
     E = 'undefined-primary-method',
-    lists:foldr(fun (M, Mcs) -> method(M, Mcs) end,
-                [[[m,'_','_'],[error,[tuple,?Q(E),?Q(Flav),m]]]],
-                Ms).
+    [[m,'_','_'],[error,[tuple,?Q(E),?Q(Flav),m]]].
 
-method({M,[As|Body]=Cs}, Mcs) ->
+method_clauses(Ms, _Flav) ->
+    lists:foldr(fun (M, Mcs) -> method_clause(M, Mcs) end, [], Ms).
+
+method_clause({M,[As|Body]=Cs}, Mcs) ->
     %% Check whether it is traditional or matching form.
     case lfe_lib:is_symb_list(As) of
         true ->
@@ -265,14 +272,14 @@ method({M,[As|Body]=Cs}, Mcs) ->
 method_clause(M, [], Body) -> [[?Q(M),self,[]] | Body];
 method_clause(M, As, Body) -> [[?Q(M),self,[list|As]] | Body].
 
-gettable(#flavor{gettables=Gs}) ->
+gettable_clauses(#flavor{gettables=Gs}) ->
     Get = fun (Var) ->
                   B = [[get,?Q(Var)]],
                   method_clause(Var, [], B)
           end,
     [ Get(Var) || Var <- Gs ].
 
-settable(#flavor{settables=Ss}) ->
+settable_clauses(#flavor{settables=Ss}) ->
     Set = fun (Var) ->
                   M = list_to_atom(lists:concat(["set-",Var])),
                   B = [[set,?Q(Var),val]],
@@ -280,7 +287,7 @@ settable(#flavor{settables=Ss}) ->
           end,
     [ Set(Var) || Var <- Ss ].
 
-daemons(Ds, Daemon, Flav) ->
+daemon_clauses(Ds, Daemon, Flav) ->
     E = list_to_atom(lists:concat(["undefined-",Daemon,"-daemon"])),
     [ method_clause(M, As, Body) || {M,D,[As|Body]} <- Ds, D =:= Daemon ] ++
         [[[m,'_','_'],[error,[tuple,?Q(E),?Q(Flav),m]]]].

@@ -18,12 +18,12 @@
 
 (defmacro defflavor
   (`(,name ,vars ,comps . ,opts)
-   (flavors_comp:defflavor name vars comps opts)))
+   (flavors_compile:defflavor name vars comps opts)))
 
 (defmacro defmethod
-  (`(,method . ,def) (flavors_comp:defmethod method def)))
+  (`(,method . ,def) (flavors_compile:defmethod method def)))
 
-(defmacro endflavor (name) (flavors_comp:endflavor name))
+(defmacro endflavor (name) (flavors_compile:endflavor name))
 
 ;; These macros basically implement variable arity functions.
 
