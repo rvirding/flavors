@@ -1,11 +1,11 @@
 (include-file "include/flavors.lfe")
 
-(defflavor f2 (g q (time (now)) (share 'f2))
+(defflavor f2 ((time (now)) (share 'f2) g q)
            ()
   gettable-instance-variables
-  (settable-instance-variables g q)     ;share is not settable
+  (settable-instance-variables q g)     ;share is not settable
   inittable-instance-variables
-  (required-instance-variables x y)
+  (required-instance-variables y x)
   (required-methods set-y)
   abstract-flavor)
 

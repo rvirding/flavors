@@ -37,13 +37,13 @@
 
 -compile({no_auto_import,[get/0,get/1]}).
 
--export([name/0,'instance-variables'/0,components/0,options/0,
-         methods/0,daemons/1]).
--export(['gettable-instance-variables'/0,
+-export([name/0,'instance-variables'/0,components/0,options/0]).
+-export(['local-instance-variables'/0,
+	 'gettable-instance-variables'/0,
          'settable-instance-variables'/0,
          'inittable-instance-variables'/0,
          plist/0]).
-%%-export(['normalised-instance-variables'/0,'normalised-options'/0]).
+-export(['primary-methods'/0,'before-daemons'/0,'after-daemons'/0]).
 -export(['primary-method'/3,'before-daemon'/3,'after-daemon'/3]).
 
 name() -> 'vanilla-flavor'.
@@ -54,10 +54,7 @@ components() -> [].
 
 options() -> ['abstract-flavor'].
 
-methods() -> ['print-self',set].
-
-daemons(before) -> [];
-daemons('after') -> [].
+'local-instance-variables'() -> [].
 
 'gettable-instance-variables'() -> [].
 
@@ -67,17 +64,11 @@ daemons('after') -> [].
 
 plist() -> [{'abstract-flavor',true}].
 
-%% 'normalised-instance-variables'() -> [].
+'primary-methods'() -> ['print-self',set].
 
-%% 'normalised-options'() ->
-%%     [['gettable-instance-variables'],
-%%      ['settable-instance-variables'],
-%%      ['inittable-instance-variables'],
-%%      ['required-instance-variables'],
-%%      ['required-methods'],
-%%      ['required-flavors'],
-%%      'abstract-flavor'
-%%     ].
+'before-daemons'() -> [].
+
+'after-daemons'() -> [].
 
 -compile({nowarn_unused_function, [get/0,get/1,set/2]}).
 

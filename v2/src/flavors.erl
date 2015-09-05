@@ -62,7 +62,7 @@ send(_, _, _) ->
 %%  is always completely in memory.
 
 make_load_module(Flav, Fm, Fc) ->
-    Plist = Fc:plist(),
+    Plist = Fc:plist(),                         %This is an orddict
     %% Generate error if abstract flavor.
     orddict:is_key('abstract-flavor', Plist) andalso
         error({'abstract-flavor',Flav}),
@@ -96,6 +96,9 @@ make_load_module(Flav, Fm, Fc) ->
     Combined = [defun,'combined-method'|Cclauses],
     Forms = [Mod,Combined|Funcs],
     ?DBG_PRINT("~p\n", [Forms]),
+    load_module(Forms, Flav, Fm).
+
+load_module(Forms, Flav, Fm) ->
     Source = lists:concat([Flav,".lfe"]),
     %% Old and new style module compilation.
     case lfe_comp:forms(Forms, [report,return,{source,Source}]) of
@@ -118,7 +121,7 @@ make_comp_sequence(Seq) ->
     add_comps(Seq, []).
 
 add_comps([F|Fs], Seq0) ->
-    Seq1 = case lists:keymember(F, 1, Seq0) of	%List of #(flav flav-core)
+    Seq1 = case lists:keymember(F, 1, Seq0) of  %List of #(flav flav-core)
                true -> Seq0;
                false -> add_comp(F, Seq0)       %Add this flavors components
            end,
@@ -146,15 +149,9 @@ check_required_ivars(Seq, Flav) ->
 get_vars(Seq) -> get_vars(Seq, ordsets:new()).
 
 get_vars([{_,Fc}|Fs], Vars) ->
-    Fvs = Fc:'instance-variables'(),
-    get_vars(Fs, merge_vars(Fvs, Vars));
+    Fvs = Fc:'local-instance-variables'(),      %This is an ordset
+    get_vars(Fs, ordsets:union(Fvs, Vars));
 get_vars([], Vars) -> Vars.
-
-merge_vars([[V,_]|Ivs], Vars) ->
-    merge_vars(Ivs, ordsets:add_element(V, Vars));
-merge_vars([V|Ivs], Vars) ->
-    merge_vars(Ivs, ordsets:add_element(V, Vars));
-merge_vars([], Vars) -> Vars.
 
 check_required_methods(Seq, Flav) ->
     Meths = get_meths(Seq),
@@ -167,8 +164,8 @@ check_required_methods(Seq, Flav) ->
 get_meths(Seq) -> get_meths(Seq, ordsets:new()).
 
 get_meths([{_,Fc}|Fs], Meths) ->
-    Ms = Fc:methods(),
-    get_meths(Fs, ordsets:union(ordsets:from_list(Ms), Meths));
+    Ms = Fc:'primary-methods'(),                %This is an ordset
+    get_meths(Fs, ordsets:union(Ms, Meths));
 get_meths([], Meths) -> Meths.
 
 check_required_flavors(Seq, Flav) ->
@@ -200,7 +197,7 @@ get_required_flavors(Seq) ->
 
 get_required(Seq, What) ->
     Req = fun ({_,Fc}, Flavs) ->
-                  Plist = Fc:plist(),
+                  Plist = Fc:plist(),           %This is an orddict
                   case orddict:find(What, Plist) of
                       {ok,Vs} -> ordsets:union(ordsets:from_list(Vs), Flavs);
                       error -> Flavs
@@ -238,18 +235,17 @@ get_methods([{F,Fc}|Fs], Meths0) ->
 get_methods([], Meths) -> Meths.
 
 get_flavor_methods(Fc) ->
-    Ms = Fc:methods(),				%User defined methods
+    Ms = Fc:'primary-methods'(),                %User defined methods
     Gs = Fc:'gettable-instance-variables'(),
     Ss = Fc:'settable-instance-variables'(),
     Ms ++ Gs ++ [ list_to_atom(lists:concat(["set-",I])) || I <- Ss ].
 
-add_methods([Fm|Fms], Flav, Meths) ->
-    case lists:keymember(Fm, 1, Meths) of
-        true ->
-            add_methods(Fms, Flav, Meths);
-        false ->
-            add_methods(Fms, Flav, Meths ++ [{Fm,Flav}])
-    end;
+add_methods([Fm|Fms], Flav, Meths0) ->
+    Meths1 = case lists:keymember(Fm, 1, Meths0) of
+                 true -> Meths0;
+                 false -> Meths0 ++ [{Fm,Flav}]
+             end,
+    add_methods(Fms, Flav, Meths1);
 add_methods([], _, Meths) -> Meths.
 
 %% get_combined_methods(Methods, Seq) -> CombMethods.
@@ -266,17 +262,17 @@ get_combined_method({M,Flav}, Seq) ->
     {M,Flav,Bds,Ads}.
 
 get_daemons(M, [{F,Fc}|Fs], Bds0, Ads0) ->
-    Bds1 = case lists:member(M, Fc:daemons(before)) of
+    Bds1 = case lists:member(M, Fc:'before-daemons'()) of
                true -> [F|Bds0];
                false -> Bds0
            end,
-    Ads1 = case lists:member(M, Fc:daemons('after')) of
+    Ads1 = case lists:member(M, Fc:'after-daemons'()) of
                true -> [F|Ads0];
                false -> Ads0
            end,
     get_daemons(M, Fs, Bds1, Ads1);
 get_daemons(_, [], Bds, Ads) ->
-    {lists:reverse(Bds),Ads}.			%Get the order right
+    {lists:reverse(Bds),Ads}.                   %Get the order right
 
 %% combined_method_clauses(CombinedMeths, Flavor) -> Clauses.
 %%  Get the combined method clauses for a flavor. The clause for each
