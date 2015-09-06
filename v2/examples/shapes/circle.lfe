@@ -10,4 +10,4 @@
   (lfe_io:format "Drawing circle at (~p ~p), radius ~p~n"
                  (list (get 'x) (get 'y) (get 'radius))))
 
-(endflavor radius)
+(endflavor circle)

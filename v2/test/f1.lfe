@@ -19,6 +19,9 @@
 (defmethod (f1 one) (x y z)
   (+ x y z))
 
+(defmethod (f1 before one) (w x y z)    ;No such method is defined
+  (print "f1 before one ~p\n" (list self)))
+
 (defmethod (f1 before one) (x y z)
   (print "f1 before one ~p\n" (list self)))
 
