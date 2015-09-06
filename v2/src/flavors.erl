@@ -22,8 +22,8 @@
 
 -include("flavors.hrl").
 
--define(DBG_PRINT(Format, Args), ok).
-%%-define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
+%%-define(DBG_PRINT(Format, Args), ok).
+-define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
 
 %% send(Instance, Method, Args) -> {Result,Instance}.
 %%  Send a method and its arguments to be evaluated by flavor
@@ -164,8 +164,8 @@ check_required_methods(Seq, Flav) ->
 get_meths(Seq) -> get_meths(Seq, ordsets:new()).
 
 get_meths([{_,Fc}|Fs], Meths) ->
-    Ms = Fc:'primary-methods'(),                %This is an ordset
-    get_meths(Fs, ordsets:union(Ms, Meths));
+    Ms = orddict:fetch_keys(Fc:'primary-methods'()),
+    get_meths(Fs, ordsets:union(ordsets:from_list(Ms), Meths));
 get_meths([], Meths) -> Meths.
 
 check_required_flavors(Seq, Flav) ->
@@ -238,7 +238,9 @@ get_flavor_methods(Fc) ->
     Ms = Fc:'primary-methods'(),                %User defined methods
     Gs = Fc:'gettable-instance-variables'(),
     Ss = Fc:'settable-instance-variables'(),
-    Ms ++ Gs ++ [ list_to_atom(lists:concat(["set-",I])) || I <- Ss ].
+    Ms ++
+        [ {G,0} || G <- Gs ] ++
+        [ {list_to_atom(lists:concat(["set-",S])),1} || S <- Ss ].
 
 add_methods([Fm|Fms], Flav, Meths0) ->
     Meths1 = case lists:keymember(Fm, 1, Meths0) of
@@ -282,9 +284,9 @@ get_daemons(_, [], Bds, Ads) ->
 combined_method_clauses(Cmeths, Flav) ->
     E = 'undefined-method',
     [ combined_method_clause(Cm) || Cm <- Cmeths ] ++
-        [[[m,'_',as],[error,[tuple,?Q(E),?Q(Flav),m,[length,as]]]]].
+        [[[m,'_',as],[error,[tuple,?Q(E),?Q(Flav),m,[tuple_size,as]]]]].
 
-combined_method_clause({M,F,Bs,As}) ->
+combined_method_clause({{M,Ar},F,Bs,As}) ->
     Bcs = [ call_before_method(M, Bf) || Bf <- Bs ],
     Acs = [ call_after_method(M, Af) || Af <- As ],
     Pfc = flavors_lib:core_name(F),
@@ -292,7 +294,8 @@ combined_method_clause({M,F,Bs,As}) ->
     PAs = if Acs =:= [] -> [Pc];                %Primary and after daemons
              true -> [[prog1,Pc|Acs]]
           end,
-    [[?Q(M),self,args] | Bcs ++ PAs].
+    Args = [tuple|lists:duplicate(Ar, '_')],
+    [[?Q(M),self,['=',args,Args]] | Bcs ++ PAs].
 
 call_before_method(M, Bf) ->
     Bfc = flavors_lib:core_name(Bf),

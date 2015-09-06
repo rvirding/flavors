@@ -18,4 +18,7 @@
 
 -define(Q(E), [quote,E]).                       %We do a lot of quoting.
 
+%% A simple try/catch.
+-define(CATCH(E, Error), try E catch _:_ -> Error end).
+
 -record('flavor-instance',{flavor,flavor_mod,instance}).

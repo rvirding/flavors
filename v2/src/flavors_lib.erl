@@ -20,6 +20,9 @@
 
 -export([mod_name/1,core_name/1]).
 
+%% List set functions
+-export([member/2,union/2,intersection/2,subtract/2]).
+
 -include("flavors.hrl").
 
 mod_name(Flav) ->
@@ -27,3 +30,20 @@ mod_name(Flav) ->
 
 core_name(Flav) ->
     list_to_atom(lists:concat([Flav,"-flavor-core"])).
+
+%% member(Elem, List) -> Bool.
+%% union(List1, List2) -> UList.
+%% intersection(List1, List2) -> IList.
+%% subtract(List1, List2) -> Slist.
+%%  Lists as sets functions.
+
+member(E, L) -> lists:member(E, L).
+
+union(L1, L2) ->
+    [ L || L <- L1, not lists:member(L, L2) ] ++ L2.
+
+intersection(L1, L2) ->
+    [ L || L <- L1, lists:member(L, L2) ].
+
+subtract(L1, L2) ->
+    [ L || L <- L1, not lists:member(L, L2) ].

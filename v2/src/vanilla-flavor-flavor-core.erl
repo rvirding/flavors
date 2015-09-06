@@ -39,7 +39,7 @@
 
 -export([name/0,'instance-variables'/0,components/0,options/0]).
 -export(['local-instance-variables'/0,
-	 'gettable-instance-variables'/0,
+         'gettable-instance-variables'/0,
          'settable-instance-variables'/0,
          'inittable-instance-variables'/0,
          plist/0]).
@@ -64,7 +64,8 @@ options() -> ['abstract-flavor'].
 
 plist() -> [{'abstract-flavor',true}].
 
-'primary-methods'() -> ['print-self',set].
+%% These must be ordsets.
+'primary-methods'() -> [{'print-self',1},{'print-self',0},{set,2}].
 
 'before-daemons'() -> [].
 
@@ -83,13 +84,13 @@ set(Var, Val) ->
     erlang:put('instance-variables', Ivars1),
     Val.
 
-'primary-method'('print-self', Self, [Stream]) ->
+'primary-method'('print-self', Self, {Stream}) ->
     lfe_io:print(Stream, {Self,get()}),
     ok;
-'primary-method'('print-self', Self, []) ->
+'primary-method'('print-self', Self, {}) ->
     lfe_io:print({Self,get()}),
     ok;
-'primary-method'(set, _, [I,V]) ->
+'primary-method'(set, _, {I,V}) ->
     set(I, V);
 'primary-method'(M, _, _) ->
     error({'undefined-primary-method','vanilla-flavor',M}).

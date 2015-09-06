@@ -206,23 +206,32 @@ defmethod(Method, Def) ->
     case erlang:get({'flavor-core',Name}) of
         undefined -> error({'illegal-flavor',Name});
         Fl0 ->
-            Fl1 = defmethod(Method, Def, Fl0),
+            Fl1 = ?CATCH(defmethod(Method, Def, Fl0),
+                         error({'illegal-method',Name})),
             erlang:put({'flavor-core',Name}, Fl1),
             [progn]
     end.
 
 method_flavor([Flav|_]) -> Flav.
 
+method_arity([As|_]) ->
+    case lfe_lib:is_symb_list(As) of
+        true -> length(As);                     %No clauses
+        false -> length(hd(As))                 %Look at args of first clause
+    end.
+
 defmethod([Flav,Meth], Def, #flavor{name=Flav,methods=Ms}=Fl) ->
     check_method(Flav, Meth, Def),
-    Fl#flavor{methods=Ms ++ [{Meth,Def}]};
+    Ar = method_arity(Def),
+    Fl#flavor{methods=Ms ++ [{{Meth,Ar},Def}]};
 defmethod([Flav,Daemon,Meth], Def, #flavor{name=Flav,daemons=Ds}=Fl) ->
     check_daemon(Flav, Meth, Daemon, Def),
-    Fl#flavor{daemons=Ds ++ [{Meth,Daemon,Def}]};
+    Ar = method_arity(Def),
+    Fl#flavor{daemons=Ds ++ [{{Meth,Ar},Daemon,Def}]};
 defmethod(_, _, #flavor{name=Name}) ->
     error({'illegal-method',Name}).
 
-check_method(_, _, _) -> ok.
+check_method(_, Meth, _) when is_atom(Meth) -> ok.
 
 check_daemon(_, _, before, _) -> ok;
 check_daemon(_, _, 'after', _) -> ok;
@@ -269,7 +278,7 @@ primary_error_clause(Flav) ->
 method_clauses(#flavor{methods=Ms}) ->
     lists:foldr(fun (M, Mcs) -> method_clause(M, Mcs) end, [], Ms).
 
-method_clause({M,[As|Body]=Cs}, Mcs) ->
+method_clause({{M,_},[As|Body]=Cs}, Mcs) ->
     %% Check whether it is traditional or matching form.
     case lfe_lib:is_symb_list(As) of
         true ->
@@ -278,8 +287,8 @@ method_clause({M,[As|Body]=Cs}, Mcs) ->
             [ method_clause(M, As, Body) || [As|Body] <- Cs ] ++ Mcs
     end.
 
-method_clause(M, [], Body) -> [[?Q(M),self,[]] | Body];
-method_clause(M, As, Body) -> [[?Q(M),self,[list|As]] | Body].
+method_clause(M, [], Body) -> [[?Q(M),self,{}] | Body];
+method_clause(M, As, Body) -> [[?Q(M),self,[tuple|As]] | Body].
 
 %% gettable_clauses(Flavor, DefMethods) -> Clauses.
 %% settable_clauses(Flavor, DefMethods) -> Clauses.
@@ -303,5 +312,5 @@ settable_clauses(#flavor{settables=Ss}, Meths) ->
 
 daemon_clauses(Ds, Daemon, Flav) ->
     E = list_to_atom(lists:concat(["undefined-",Daemon,"-daemon"])),
-    [ method_clause(M, As, Body) || {M,D,[As|Body]} <- Ds, D =:= Daemon ] ++
+    [ method_clause(M, As, Body) || {{M,_},D,[As|Body]} <- Ds, D =:= Daemon ] ++
         [[[m,'_','_'],[error,[tuple,?Q(E),?Q(Flav),m]]]].
