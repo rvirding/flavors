@@ -164,8 +164,8 @@ check_required_methods(Seq, Flav) ->
 get_meths(Seq) -> get_meths(Seq, ordsets:new()).
 
 get_meths([{_,Fc}|Fs], Meths) ->
-    Ms = orddict:fetch_keys(Fc:'primary-methods'()),
-    get_meths(Fs, ordsets:union(ordsets:from_list(Ms), Meths));
+    Ms = Fc:'primary-methods'(),                %This is an ordset
+    get_meths(Fs, ordsets:union(Ms, Meths));
 get_meths([], Meths) -> Meths.
 
 check_required_flavors(Seq, Flav) ->
@@ -264,8 +264,9 @@ get_combined_method({M,Flav}, Seq) ->
     {M,Flav,Bds,Ads}.
 
 get_daemons(M, [{F,Fc}|Fs], Bds0, Ads0) ->
+    %% Make sure to get the order right!
     Bds1 = case lists:member(M, Fc:'before-daemons'()) of
-               true -> [F|Bds0];
+               true -> Bds0 ++ [F];
                false -> Bds0
            end,
     Ads1 = case lists:member(M, Fc:'after-daemons'()) of
@@ -273,8 +274,7 @@ get_daemons(M, [{F,Fc}|Fs], Bds0, Ads0) ->
                false -> Ads0
            end,
     get_daemons(M, Fs, Bds1, Ads1);
-get_daemons(_, [], Bds, Ads) ->
-    {lists:reverse(Bds),Ads}.                   %Get the order right
+get_daemons(_, [], Bds, Ads) -> {Bds,Ads}.
 
 %% combined_method_clauses(CombinedMeths, Flavor) -> Clauses.
 %%  Get the combined method clauses for a flavor. The clause for each

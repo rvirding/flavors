@@ -170,7 +170,8 @@ parse_option(Opt, Args, Name, Vars, C) ->
             C#collect{plist=orddict:store(Opt, Args, C#collect.plist)};
             %%C#collect{reqi=Args};
         'required-methods' ->
-            C#collect{plist=orddict:store(Opt, Args, C#collect.plist)};
+            Ms = validate_required_methods(Opt, Args, Name),
+            C#collect{plist=orddict:store(Opt, Ms, C#collect.plist)};
             %%C#collect{reqm=Args};
         'required-flavors' ->
             C#collect{plist=orddict:store(Opt, Args, C#collect.plist)};
@@ -198,6 +199,15 @@ validate_instance_vars(Opt, Args, Name, Vars) ->
         Unknown -> error({'unknown-instance-vars',Name,Opt,Unknown})
     end.
 
+%% validate_required_methods(Opt, Args, Name) -> Methods.
+%%  Check that the methods are of the form (method arity) and return
+%%  as tuples.
+
+validate_required_methods(Opt, Args, Name) ->
+    lists:map(fun ([M,Ar]) when is_atom(M), is_integer(Ar) -> {M,Ar};
+                  (M) -> error({'illegal-required-method',Name,Opt,M})
+              end, Args).
+
 %% defmethod(Method, Def) -> [progn].
 %%  Save a method definition for later processing.
 
@@ -207,7 +217,7 @@ defmethod(Method, Def) ->
         undefined -> error({'illegal-flavor',Name});
         Fl0 ->
             Fl1 = ?CATCH(defmethod(Method, Def, Fl0),
-                         error({'illegal-method',Name})),
+                         error({'illegal-method',Name,Method})),
             erlang:put({'flavor-core',Name}, Fl1),
             [progn]
     end.
@@ -227,9 +237,7 @@ defmethod([Flav,Meth], Def, #flavor{name=Flav,methods=Ms}=Fl) ->
 defmethod([Flav,Daemon,Meth], Def, #flavor{name=Flav,daemons=Ds}=Fl) ->
     check_daemon(Flav, Meth, Daemon, Def),
     Ar = method_arity(Def),
-    Fl#flavor{daemons=Ds ++ [{{Meth,Ar},Daemon,Def}]};
-defmethod(_, _, #flavor{name=Name}) ->
-    error({'illegal-method',Name}).
+    Fl#flavor{daemons=Ds ++ [{{Meth,Ar},Daemon,Def}]}.
 
 check_method(_, Meth, _) when is_atom(Meth) -> ok.
 

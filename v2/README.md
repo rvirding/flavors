@@ -1,4 +1,4 @@
-### v1
+### v2
 
 In this version a flavors instance is modelled with a process which is
 more LFEy. The instance variables are kept internally in a map. This
@@ -15,7 +15,7 @@ This model has 2 modules for each flavor:
   built when the first instance of this flavor is made using
   ``make-instance`` or ``flavors:instantiate-flavor``.
 
-The reason for having 2 modules per flavor is that access function
+The reason for having 2 modules per flavor is that the access function
 module will only be built for flavors which actually have instances of
 them, so they won't be built for mixins. It also makes it easier to
 modify flavors that are being used.
@@ -50,7 +50,7 @@ Currently we support the options:
 - ``settable-instance-variables``
 - ``inittable-instance-variables``
 - ``required-instance-variables``
-- ``required-methods``
+- ``required-methods`` (methods given as ``(name arity)``)
 - ``required-flavors``
 - ``no-vanilla-flavor``
 - ``abstract-flavor``
