@@ -31,7 +31,7 @@ $(EBINDIR)/%.beam: $(SRCDIR)/%.erl
 
 all: compile docs
 
-.PHONY: compile erlc_compile install docs clean
+.PHONY: compile erlc-compile install docs clean
 
 ## Compile using rebar if it exists else using make
 compile:
@@ -39,11 +39,11 @@ compile:
 	then rebar.cmd compile; \
 	elif which rebar > /dev/null; \
 	then rebar compile; \
-	else $(MAKE) $(MFLAGS) erlc_compile; \
+	else $(MAKE) $(MFLAGS) erlc-compile; \
 	fi
 
 ## Compile using erlc
-erlc_compile: $(addprefix $(EBINDIR)/, $(EBINS)) $(addprefix $(BINDIR)/, $(BINS))
+erlc-compile: $(addprefix $(EBINDIR)/, $(EBINS)) $(addprefix $(BINDIR)/, $(BINS))
 
 docs:
 
