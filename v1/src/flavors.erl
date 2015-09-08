@@ -47,7 +47,7 @@ send(_, _, _) ->
 make_instance(Flav, Fm, Opts) ->
     Ivars = Fm:'instance-variables'(),
     Mlist = make_map_list(Ivars, Opts),
-    maps:from_list([{'*flavor-module*',Fm}|Mlist]).
+    maps:from_list([{'*flavor-name*',Flav},{'*flavor-module*',Fm}|Mlist]).
 
 make_map_list([{V,I}|Mlist], Opts) ->
     Pair = case plist_get(V, Opts) of
@@ -101,8 +101,17 @@ make_load_module(Flav, Fm, Fc) ->
     Forms = [Mod,Combined|Funcs],
     ?DBG_PRINT("~p\n", [Forms]),
     Source = lists:concat([Flav,".lfe"]),
-    {ok,_,Binary,_} = lfe_comp:forms(Forms, [report,return,{source,Source}]),
-    code:load_binary(Fm, lists:concat([Fm,".lfe"]), Binary).
+    %% Old and new style module compilation.
+    case lfe_comp:forms(Forms, [report,return,{source,Source}]) of
+        {ok,Bins,_} ->                          %New style
+            Load = fun ({ok,M,Bin,_}) ->
+                           Bfm = flavors_lib:mod_name(M),
+                           code:load_binary(Fm, lists:concat([Bfm,".lfe"]), Bin)
+                   end,
+            lists:foreach(Load, Bins);
+        {ok,_,Binary,_} ->                      %Old style
+            code:load_binary(Fm, lists:concat([Fm,".lfe"]), Binary)
+    end.
 
 %% make_comp_sequence(Flavors) -> Sequence.
 %%  Make the component sequence.
