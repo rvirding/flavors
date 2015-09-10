@@ -22,8 +22,8 @@
 
 -include("flavors.hrl").
 
-%%-define(DBG_PRINT(Format, Args), ok).
--define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
+-define(DBG_PRINT(Format, Args), ok).
+%%-define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
 
 %% The flavor record.
 -record(flavor, {name,                          %Flavor name
@@ -167,14 +167,16 @@ parse_option(Opt, Args, Name, Vars, C) ->
             C#collect{inits=Is};
         %% Handle the required things.
         'required-instance-variables' ->
-            C#collect{plist=orddict:store(Opt, Args, C#collect.plist)};
+	    Is = validate_required_instance_vars(Opt, Args, Name),
+            C#collect{plist=orddict:store(Opt, Is, C#collect.plist)};
             %%C#collect{reqi=Args};
         'required-methods' ->
             Ms = validate_required_methods(Opt, Args, Name),
             C#collect{plist=orddict:store(Opt, Ms, C#collect.plist)};
             %%C#collect{reqm=Args};
         'required-flavors' ->
-            C#collect{plist=orddict:store(Opt, Args, C#collect.plist)};
+	    Fs = validate_required_flavors(Opt, Args, Name),
+            C#collect{plist=orddict:store(Opt, Fs, C#collect.plist)};
             %%C#collect{reqf=Args};
         %% Now for the rest which we accept.
         'no-vanilla-flavor' ->
@@ -196,17 +198,41 @@ validate_instance_vars(Opt, Args, Name, Vars) ->
     Aset = ordsets:from_list(Args),
     case ordsets:subtract(Aset, Vars) of
         [] -> Aset;
-        Unknown -> error({'unknown-instance-vars',Name,Opt,Unknown})
+        Unknown -> error({'unknown-instance-variables',Name,Opt,Unknown})
     end.
 
-%% validate_required_methods(Opt, Args, Name) -> Methods.
-%%  Check that the methods are of the form (method arity) and return
-%%  as tuples.
+%% validate_required_instance_vars(Opt, Args, Name) -> Required.
+%% validate_required_flavors(Opt, Args, Name) -> Required.
+%%  Return an ordered set of variables/flavors.
 
-validate_required_methods(Opt, Args, Name) ->
-    lists:map(fun ([M,Ar]) when is_atom(M), is_integer(Ar) -> {M,Ar};
-                  (M) -> error({'illegal-required-method',Name,Opt,M})
-              end, Args).
+validate_required_instance_vars(_Opt, Args, Name) ->
+    Req = fun require_symbol/2,
+    validate_required('illegal-required-variables', Req, Args, Name).
+
+validate_required_flavors(_Opt, Args, Name) ->
+    Req = fun require_symbol/2,
+    validate_required('illegal-required-flavors', Req, Args, Name).
+
+require_symbol(A, {Rs,Es}) when is_atom(A) ->
+    {ordsets:add_element(A, Rs),Es};
+require_symbol(A, {Rs,Es}) -> {Rs,[A|Es]}.
+
+%% validate_required_methods(Opt, Args, Name) -> Methods.
+%%  Return an ordered set of name/arity tuples.
+
+validate_required_methods(_Opt, Args, Name) ->
+    Req = fun require_method/2,
+    validate_required('illegal-required-methods', Req, Args, Name).
+
+require_method([M,Ar], {Rs,Es}) when is_atom(M), is_integer(Ar), Ar >= 0 ->
+    {ordsets:add_element({M,Ar}, Rs),Es};
+require_method(A, {Rs,Es}) -> {Rs,[A|Es]}.
+
+validate_required(Error, Required, Args, Name) ->
+    case lists:foldl(Required, {ordsets:new(),[]}, Args) of
+        {Reqs,[]} -> Reqs;
+        {_,Es} -> error({Error,Name,Es})
+    end.
 
 %% defmethod(Method, Def) -> [progn].
 %%  Save a method definition for later processing.
@@ -261,15 +287,18 @@ endflavor(Name) ->
     Funcs = [[defun,'primary-methods',[],?Q(Ms)],
              [defun,'before-daemons',[],?Q(Bs)],
              [defun,'after-daemons',[],?Q(As)]],
-    %% Now get the actual primary and daemon functions.
+    %% Build the primary method function.
     Methods = method_clauses(Fl),
     Gets = gettable_clauses(Fl, Ms),
     Sets = settable_clauses(Fl, Ms),
-    Perror = primary_error_clause(Name),
-    Primary = [defun,'primary-method'|Gets ++ Sets ++ Methods ++ [Perror]],
-    Befs = daemon_clauses(Fl#flavor.daemons, before, Name),
+    Defs = default_clauses(Fl, Ms),
+    Perror = primary_error_clause(Fl),
+    Primary = [defun,'primary-method'|
+	       Gets ++ Sets ++ Methods ++ Defs ++ [Perror]],
+    %% Build the before and after daemon functions.
+    Befs = daemon_clauses(Fl, before),
     Before = [defun,'before-daemon'|Befs],
-    Afts = daemon_clauses(Fl#flavor.daemons, 'after', Name),
+    Afts = daemon_clauses(Fl, 'after'),
     After = [defun,'after-daemon'|Afts],
     ?DBG_PRINT("~p\n", [Funcs ++ [Primary,Before,After]]),
     %% Return the flavor functions to be compiled.
@@ -279,20 +308,20 @@ endflavor(Name) ->
     %% {ok,_,Binary} = lfe_comp:forms(Forms, [verbose,report,{source,Source}]),
     %% file:write_file(lists:concat([Cname,".beam"]), Binary),
 
-primary_error_clause(Flav) ->
+primary_error_clause(#flavor{name=Name}) ->
     E = 'undefined-primary-method',
-    [[m,'_','_'],[error,[tuple,?Q(E),?Q(Flav),m]]].
+    [[m,'_','_'],[error,[tuple,?Q(E),?Q(Name),m]]].
 
 method_clauses(#flavor{methods=Ms}) ->
     lists:foldr(fun (M, Mcs) -> method_clause(M, Mcs) end, [], Ms).
 
-method_clause({{M,_},[As|Body]=Cs}, Mcs) ->
+method_clause({{M,_},[Args|Body]=Cs}, Mcs) ->
     %% Check whether it is traditional or matching form.
-    case lfe_lib:is_symb_list(As) of
+    case lfe_lib:is_symb_list(Args) of
         true ->
-            [method_clause(M, As, Body)|Mcs];
+            [method_clause(M, Args, Body)|Mcs];
         false ->
-            [ method_clause(M, As, Body) || [As|Body] <- Cs ] ++ Mcs
+            [ method_clause(M, As, B) || [As|B] <- Cs ] ++ Mcs
     end.
 
 method_clause(M, [], Body) -> [[?Q(M),self,{}] | Body];
@@ -308,7 +337,7 @@ gettable_clauses(#flavor{gettables=Gs}, Meths) ->
                   B = [[get,?Q(Var)]],
                   method_clause(Var, [], B)
           end,
-    [ Get(Var) || Var <- Gs, not ordsets:is_element(Var, Meths) ].
+    [ Get(Var) || Var <- Gs, not ordsets:is_element({Var,0}, Meths) ].
 
 settable_clauses(#flavor{settables=Ss}, Meths) ->
     MVs = [ {list_to_atom(lists:concat(["set-",Var])),Var} || Var <- Ss ],
@@ -316,9 +345,20 @@ settable_clauses(#flavor{settables=Ss}, Meths) ->
                   B = [[set,?Q(Var),val]],
                   method_clause(M, [val], B)
           end,
-    [ Set(M, Var) || {M,Var} <- MVs, not ordsets:is_element(M, Meths) ].
+    [ Set(M, Var) || {M,Var} <- MVs, not ordsets:is_element({M,1}, Meths) ].
 
-daemon_clauses(Ds, Daemon, Flav) ->
+%% default_clauses(Flavor, DefMethods) -> Clauses.
+
+default_clauses(_, Meths) ->
+    Def = fun (M, As, B) -> method_clause(M, As, B) end,
+    DMs = [{init,1,[plist],[?Q(ok)]},
+	   {terminate,0,[],[?Q(ok)]}],
+    [ Def(M, As, B) || {M,Ar,As,B} <- DMs,
+		       not ordsets:is_element({M,Ar}, Meths) ].
+
+%% daemon_clauses(Flavor, Daemon, Daemons) -> Clauses
+
+daemon_clauses(#flavor{daemons=Ds,name=Name}, Daemon) ->
     E = list_to_atom(lists:concat(["undefined-",Daemon,"-daemon"])),
     [ method_clause(M, As, Body) || {{M,_},D,[As|Body]} <- Ds, D =:= Daemon ] ++
-        [[[m,'_','_'],[error,[tuple,?Q(E),?Q(Flav),m]]]].
+        [[[m,'_','_'],[error,[tuple,?Q(E),?Q(Name),m]]]].

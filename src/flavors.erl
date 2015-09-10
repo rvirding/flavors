@@ -22,8 +22,8 @@
 
 -include("flavors.hrl").
 
-%%-define(DBG_PRINT(Format, Args), ok).
--define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
+-define(DBG_PRINT(Format, Args), ok).
+%%-define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
 
 %% send(Instance, Method, Args) -> {Result,Instance}.
 %%  Send a method and its arguments to be evaluated by flavor
@@ -78,9 +78,10 @@ make_load_module(Flav, Fm, Fc) ->
     check_required_flavors(Seq, Flav),
     %% Define the flavor module.
     Ivars = get_instance_vars(Seq),
-    Methods = get_methods(Seq),
-    ?DBG_PRINT("m: ~p\n", [Methods]),
-    Cmethods = get_combined_methods(Methods, Seq),
+    Methods0 = get_methods(Seq),                %All methods
+    Methods1 = add_default_methods(Methods0, Flav),
+    ?DBG_PRINT("m: ~p\n", [Methods1]),
+    Cmethods = get_combined_methods(Methods1, Seq),
     Mod = [defmodule,Fm,
            [export,
             [name,0],
@@ -133,18 +134,16 @@ add_comp(F, Seq) ->
     Cs = Fc:components(),                       %Flavor components
     add_comps(Cs, Seq ++ [{F,Fc}]).             %We come before our components
 
-%% check_required_ivars(Seq) -> ok.
-%% check_required_methods(Seq) -> ok.
-%% check_required_flavors(Seq) -> ok.
+%% check_required_ivars(Seq, Name) -> ok.
+%% check_required_methods(Seq, Name) -> ok.
+%% check_required_flavors(Seq, Name) -> ok.
 %%  Check the required instance-variables/methods/flavors are defined.
+%%  We don't care who defines them just that they are defined.
 
-check_required_ivars(Seq, Flav) ->
+check_required_ivars(Seq, Name) ->
     Vars = get_vars(Seq),
     Req = get_required_ivars(Seq),
-    case ordsets:subtract(Req, Vars) of
-        [] -> ok;
-        Vs -> error({'required-instance-variables',Flav,Vs})
-    end.
+    check_required('required-instance-variables', Vars, Req, Name).
 
 get_vars(Seq) -> get_vars(Seq, ordsets:new()).
 
@@ -153,31 +152,31 @@ get_vars([{_,Fc}|Fs], Vars) ->
     get_vars(Fs, ordsets:union(Fvs, Vars));
 get_vars([], Vars) -> Vars.
 
-check_required_methods(Seq, Flav) ->
+check_required_methods(Seq, Name) ->
     Meths = get_meths(Seq),
     Req = get_required_methods(Seq),
-    case ordsets:subtract(Req, Meths) of
-        [] -> ok;
-        Ms -> error({'required-methods',Flav,Ms})
-    end.
+    check_required('required-methods', Meths, Req, Name).
 
 get_meths(Seq) -> get_meths(Seq, ordsets:new()).
 
 get_meths([{_,Fc}|Fs], Meths) ->
-    Ms = Fc:'primary-methods'(),                %This is an ordset
+    Ms = ordsets:from_list(get_flavor_methods(Fc)),
     get_meths(Fs, ordsets:union(Ms, Meths));
 get_meths([], Meths) -> Meths.
 
-check_required_flavors(Seq, Flav) ->
+check_required_flavors(Seq, Name) ->
     Flavs = get_flavs(Seq),
     Req = get_required_flavors(Seq),
-    case ordsets:subtract(Req, Flavs) of
-        [] -> ok;
-        Fs -> error({'required-methods',Flav,Fs})
-    end.
+    check_required('required-methods', Flavs, Req, Name).
 
 get_flavs(Seq) ->
     lists:map(fun ({F,_}) -> F end, Seq).
+
+check_required(Opt, Avail, Req, Name) ->
+    case ordsets:subtract(Req, Avail) of
+        [] -> ok;
+        Es -> error({Opt,Name,Es})
+    end.
 
 %% get_required_ivars(Sequence) -> InstanceVars.
 %% get_required_methods(Sequence) -> Methods.
@@ -196,11 +195,11 @@ get_required_flavors(Seq) ->
     get_required(Seq, 'required-flavors').
 
 get_required(Seq, What) ->
-    Req = fun ({_,Fc}, Flavs) ->
+    Req = fun ({_,Fc}, Req) ->
                   Plist = Fc:plist(),           %This is an orddict
                   case orddict:find(What, Plist) of
-                      {ok,Vs} -> ordsets:union(ordsets:from_list(Vs), Flavs);
-                      error -> Flavs
+                      {ok,Vs} -> ordsets:union(Vs, Req);
+                      error -> Req
                   end
           end,
     lists:foldl(Req, ordsets:new(), Seq).
@@ -249,6 +248,20 @@ add_methods([Fm|Fms], Flav, Meths0) ->
              end,
     add_methods(Fms, Flav, Meths1);
 add_methods([], _, Meths) -> Meths.
+
+%% add_default_methods(Methods) -> Methods.
+%%  Add the necessary default methods, init/1 and terminate/0, using
+%%  the primaries in main flavor if not already defined.
+
+add_default_methods(Meths0, Name) ->
+    Meths1 = add_default_method({init,1}, Meths0, Name),
+    add_default_method({terminate,0}, Meths1, Name).
+
+add_default_method(Meth, Meths, Name) ->
+    case lists:keymember(Meth, 1, Meths) of
+        true -> Meths;
+        false -> Meths ++ [{Meth,Name}]
+    end.
 
 %% get_combined_methods(Methods, Seq) -> CombMethods.
 %%  Get the combined methods returning the method, flavor and

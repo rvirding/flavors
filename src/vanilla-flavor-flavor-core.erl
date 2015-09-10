@@ -21,15 +21,13 @@
 %% (defflavor vanilla-flavor () () abstract-flavor)
 %%
 %% (defmethod (vanilla-flavor print-self) (stream)
-%%   (lfe_io:print stream self)
-%%   (tuple 'ok self))
+%%   (lfe_io:print stream self))
 %%
 %% (defmethod (vanilla-flavor print-self) ()
-%%   (lfe_io:print self)
-%%   (tuple 'ok self))
+%%   (lfe_io:print self))
 %%
 %% (defmethod (vanilla-flavor set) (var val)
-%%   (tuple 'ok (maps:update self var val)))
+%%   (set var val))
 %%
 %% (endflavor vanilla-flavor)
 
@@ -65,7 +63,7 @@ options() -> ['abstract-flavor'].
 plist() -> [{'abstract-flavor',true}].
 
 %% These must be ordsets.
-'primary-methods'() -> [{'print-self',1},{'print-self',0},{set,2}].
+'primary-methods'() -> [{'print-self',0},{'print-self',1},{set,2}].
 
 'before-daemons'() -> [].
 
@@ -85,11 +83,9 @@ set(Var, Val) ->
     Val.
 
 'primary-method'('print-self', Self, {Stream}) ->
-    lfe_io:print(Stream, {Self,get()}),
-    ok;
+    lfe_io:print(Stream, {Self,get()});
 'primary-method'('print-self', Self, {}) ->
-    lfe_io:print({Self,get()}),
-    ok;
+    lfe_io:print({Self,get()});
 'primary-method'(set, _, {I,V}) ->
     set(I, V);
 'primary-method'(M, _, _) ->

@@ -64,6 +64,7 @@ init({Flav,Fm,Opts}) ->
     Self = #'flavor-instance'{flavor=Flav,
                               flavor_mod=Fm,
                               instance=self()},
+    Fm:'combined-method'(init, Self, {Opts}),   %Send ourselves init
     {ok,#state{name=Flav,fm=Fm,self=Self}}.
 
 make_map_list([{V,I}|Mlist], Opts) ->
@@ -78,21 +79,24 @@ plist_get(X, [X,V|_]) -> {ok,V};
 plist_get(X, [_,_|Plist]) -> plist_get(X, Plist);
 plist_get(_, []) -> error.
 
-terminate(_, _) ->
-    ok.
+terminate(_, St) ->
+    send_method(terminate, {}, St).		%Send ourselves terminate
 
-handle_call({send,Meth,Args}, _, #state{fm=Fm,self=Self}=St) ->
+handle_call({send,terminate,{}}, _, St) ->	%The true terminate
+    {stop,normal,{ok,ok},St};
+handle_call({send,Meth,Args}, _, St) ->
+    Reply = send_method(Meth, Args, St),
+    {reply,Reply,St}.
+
+send_method(Meth, Args, #state{fm=Fm,self=Self}) ->
     %% Catch errors, exits and throws and signal in the caller.
     try
         Result = Fm:'combined-method'(Meth, Self, Args),
-        {reply,{ok,Result},St}
+	{ok,Result}
     catch                                       %Catch and return
-        error:Error ->
-            {reply,{error,Error},St};
-        exit:Exit ->
-            {reply,{error,Exit},St};
-        throw:Thrown ->
-            {reply,{error,{nocatch,Thrown}},St}
+        error:Error -> {error,Error};
+        exit:Exit -> {error,Exit};
+        throw:Thrown -> {error,{nocatch,Thrown}}
     end.
 
 handle_cast(stop, St) ->
