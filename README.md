@@ -52,10 +52,7 @@ To access the macros do ``(include-file "include/flavors.lfe")`` or
 ``(include-lib "flavors/include/flavors.lfe")`` if you have the
 flavors application in your search path.
 
-In this simple test the map representing the instance is directly
-visible and operations on it are explicitly done. There is no hiding
-of the actual implementation. The following macros are available for
-defining flavors:
+The following macros are available for defining flavorf and methods:
 
 ```lisp
 (defflavor <flavor-name> (<var1> <var2> ...) (<flav1> <flav2> ...) <opt1> <opt2> ...)
@@ -64,7 +61,7 @@ defining flavors:
 (endflavor <flavor-name>)               ;Must be last after the methods
 ```
 
-Currently we support the options:
+The currently supported the options:
 
 - ``gettable-instance-variables``
 - ``settable-instance-variables``
@@ -77,6 +74,14 @@ Currently we support the options:
 
 and the standard method types ``before`` and ``after`` for the
 daemons.
+
+The ``init/1`` method is also supported and it is automatically called
+together with its daemons with the ``init-plist`` as its argument when
+an instance is created. There is a predefined method ``terminate/0``
+which terminates the instance after calling the method and its before
+and after daemons. The default methods for ``init/1`` and
+``terminate/0`` do nothing and it is intended for those flavors which
+need to use the methods will add daemons rather than redefining them.
 
 For using the flavor definitions there is:
 
