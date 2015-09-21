@@ -6,7 +6,7 @@
   (settable-instance-variables q g)     ;share is not settable
   inittable-instance-variables
   (required-instance-variables y x)
-  (required-methods (set-y 1))
+  (required-methods (set-y 1) (set-a 1))
   abstract-flavor)
 
 (defmethod (f2 before set-y) (v)

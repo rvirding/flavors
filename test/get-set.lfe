@@ -17,7 +17,7 @@
 (defmethod (flav-1 a) ()                ;This should shadow the gettable
   (tuple 'flav-1 (get 'a)))
 
-(defmethod (flav-1 x) (m n)		;This should not shadow the gettable
+(defmethod (flav-1 x) (m n)             ;This should not shadow the gettable
   (tuple 'flav-1 (get 'x) m n))
 
 (endflavor flav-1)
