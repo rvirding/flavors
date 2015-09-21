@@ -31,12 +31,16 @@
 %%  and resignaled here. This seems more reasonable than crashing the
 %%  instance.
 
-send(#'flavor-instance'{instance=Pid}, Meth, Args) ->
-    case flavors_instance:send(Pid, Meth, Args) of
-        {ok,Res} -> Res;
-        {error,Error} -> error(Error);          %Resignal error
-        {exit,Exit} -> exit(Exit);              %Resignal exit
-        {throw,Value} -> throw(Value)           %Rethrow value
+send(#'flavor-instance'{flavor_mod=Fm,instance=Pid}=Inst, Meth, Args) ->
+    if Pid =:= self() ->                        %Are we calling ourselves?
+	    Fm:'combined-method'(Meth, Inst, Args);
+       true ->
+	    case flavors_instance:send(Pid, Meth, Args) of
+		{ok,Res} -> Res;
+		{error,Error} -> error(Error);  %Resignal error
+		{exit,Exit} -> exit(Exit);      %Resignal exit
+		{throw,Thrown} -> throw(Thrown) %Rethrow value
+	    end
     end;
 send(_, _, _) ->
     error(flavor_instance).
