@@ -2,8 +2,9 @@
 
 (include-file "include/flavors.lfe")
 
-(defflavor s1 (a b c d x)
+(defflavor s1 (a b (c 84) d x)
            (s2)
+  (init-keywords k-2 k-4)
   (settable-instance-variables a b d)
   (required-instance-variables y)
   )
@@ -19,8 +20,9 @@
 
 (endflavor s1)
 
-(defflavor s2 (a b c y)
+(defflavor s2 (a (b 42) c y)
            ()
+  (init-keywords k-1 k-2 k-3)
   (settable-instance-variables b c)
   (required-instance-variables x)
   abstract-flavor)

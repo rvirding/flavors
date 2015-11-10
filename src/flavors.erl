@@ -25,7 +25,7 @@
 -define(DBG_PRINT(Format, Args), ok).
 %%-define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
 
-%% send(Instance, Method, Args) -> {Result,Instance}.
+%% send(Instance, Method, ArgsTuple) -> {Result,Instance}.
 %%  Send a method and its arguments to be evaluated by flavor
 %%  instance. Any errors occuring in the instance are sent back here
 %%  and resignaled here. This seems more reasonable than crashing the
@@ -33,14 +33,14 @@
 
 send(#'flavor-instance'{flavor_mod=Fm,instance=Pid}=Inst, Meth, Args) ->
     if Pid =:= self() ->                        %Are we calling ourselves?
-	    Fm:'combined-method'(Meth, Inst, Args);
+            Fm:'combined-method'(Meth, Inst, Args);
        true ->
-	    case flavors_instance:send(Pid, Meth, Args) of
-		{ok,Res} -> Res;
-		{error,Error} -> error(Error);  %Resignal error
-		{exit,Exit} -> exit(Exit);      %Resignal exit
-		{throw,Thrown} -> throw(Thrown) %Rethrow value
-	    end
+            case flavors_instance:send(Pid, Meth, Args) of
+                {ok,Res} -> Res;
+                {error,Error} -> error(Error);  %Resignal error
+                {exit,Exit} -> exit(Exit);      %Resignal exit
+                {throw,Thrown} -> throw(Thrown) %Rethrow value
+            end
     end;
 send(_, _, _) ->
     error(flavor_instance).
@@ -82,6 +82,7 @@ make_load_module(Flav, Fm, Fc) ->
     check_required_flavors(Seq, Flav),
     %% Define the flavor module.
     Ivars = get_instance_vars(Seq),
+    Ikeys = get_init_keywords(Seq),
     Methods0 = get_methods(Seq),                %All methods
     Methods1 = add_default_methods(Methods0, Flav),
     ?DBG_PRINT("m: ~p\n", [Methods1]),
@@ -90,11 +91,13 @@ make_load_module(Flav, Fm, Fc) ->
            [export,
             [name,0],
             ['instance-variables',0],
+            ['init-keywords',0],
             ['component-sequence',0],
             ['combined-methods',0],
             ['combined-method',3]]],
     Funcs = [[defun,name,[],?Q(Flav)],
              [defun,'instance-variables',[],?Q(Ivars)],
+             [defun,'init-keywords',[],?Q(Ikeys)],
              [defun,'component-sequence',[],?Q(Seq)],
              [defun,'combined-methods',[],?Q(Cmethods)]],
     Cclauses = combined_method_clauses(Cmethods, Flav),
@@ -223,6 +226,15 @@ merge_instance_vars({_,Fc}, Vars) ->
     lists:foldl(fun ([V,I], Vs) -> orddict:store(V, I, Vs);
                     (V, Vs) -> orddict:store(V, ?Q(undefined), Vs)
                 end, Vars, Fvs).
+
+%% get_init_keywords(Sequence) -> Keywords.
+%%  Get the init keywords of the components.
+
+get_init_keywords(Seq) ->
+    Kws = fun ({_,Fc}, Kws) ->
+                  flavors_lib:union(Fc:'init-keywords'(), Kws)
+          end,
+    lists:foldl(Kws, [], Seq).
 
 %% get_methods(Sequence) -> Methods.
 %%  Get the methods. The resultant Methods is a list of #(method

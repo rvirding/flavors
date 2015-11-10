@@ -58,26 +58,40 @@ send(Ins, Meth, Args) ->
 %% Behaviour callbacks.
 init({Flav,Fm,Opts}) ->
     Ivars = Fm:'instance-variables'(),
-    Mlist = make_map_list(Ivars, Opts),
-    Imap = maps:from_list(Mlist),
-    erlang:put('instance-variables', Imap),
-    Self = #'flavor-instance'{flavor=Flav,
-                              flavor_mod=Fm,
-                              instance=self()},
-    Fm:'combined-method'(init, Self, {Opts}),   %Send ourselves init
-    {ok,#state{name=Flav,fm=Fm,self=Self}}.
+    Ikeys = Fm:'init-keywords'(),
+    %% Catch errors and return {stop,_} for better error value.
+    try
+	check_init_keywords(Opts, Ivars, Ikeys, Flav),
+	Mlist = make_map_list(Ivars, Opts),
+	Imap = maps:from_list(Mlist),
+	erlang:put('instance-variables', Imap),
+	Self = #'flavor-instance'{flavor=Flav,
+				  flavor_mod=Fm,
+				  instance=self()},
+	%% Send ourselves init.
+	Fm:'combined-method'(init, Self, {Opts}),
+	{ok,#state{name=Flav,fm=Fm,self=Self}}
+    catch
+	throw:_ -> {stop,nocatch};
+	_:E -> {stop,E}				%Exit and error
+    end.
+
+check_init_keywords([O,_|Opts], Ivars, Ikeys, Name) ->
+    case flavors_lib:member(O, Ikeys) orelse
+	lists:keymember(O, 1, Ivars) of
+	true ->
+	    check_init_keywords(Opts, Ivars, Ikeys, Name);
+	false -> error({'init-keywords',Name,O})
+    end;
+check_init_keywords([], _, _, _) -> ok.
 
 make_map_list([{V,I}|Mlist], Opts) ->
-    Pair = case plist_get(V, Opts) of
-               {ok,I1} -> {V,I1};
-               error -> {V,lfe_eval:expr(I)}
+    Pair = case flavors_lib:getf(Opts, V) of
+	       [] -> {V,lfe_eval:expr(I)};
+               I1 -> {V,I1}
            end,
     [Pair|make_map_list(Mlist, Opts)];
 make_map_list([], _) -> [].
-
-plist_get(X, [X,V|_]) -> {ok,V};
-plist_get(X, [_,_|Plist]) -> plist_get(X, Plist);
-plist_get(_, []) -> error.
 
 terminate(_, St) ->
     send_method(terminate, {}, St).             %Send ourselves terminate

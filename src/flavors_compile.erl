@@ -30,11 +30,12 @@
                  ivars=[],                      %Local instance variables
                  comps=[],                      %Components
                  options=[],
-                 %% Derived data, these are all ordsets.
+                 %% Derived data, these are all list sets.
                  locals=[],                     %Local instance variables
                  gettables=[],                  %Gettable, settable, inittable
                  settables=[],
                  inittables=[],
+                 initkeywords=[],               %Valid init-plist keywords
                  plist=[],                      %Other esoteric things
                  %% Required instance variables/methods/flavors.
                  req_ivars=[],
@@ -46,7 +47,7 @@
 
 %% Options arguments we collect.
 -record(collect, {vars=[],comps=[],
-                  gets=[],sets=[],inits=[],
+                  gets=[],sets=[],inits=[],ikeys=[],
                   reqi=[],reqm=[],reqf=[],plist=[]}).
 
 %% defflavor(Name, InstanceVariables, Components, Options) ->
@@ -65,8 +66,8 @@ defflavor(Name, IVars, Comps, Opts) ->
     C1 = parse_options(Opts, Name, Vars, C0),
     %% Settable instance variables are also gettable and inittable.
     Sets = C1#collect.sets,
-    C2 = C1#collect{gets=ordsets:union(Sets, C1#collect.gets)},
-    C3 = C2#collect{inits=ordsets:union(Sets, C2#collect.inits)},
+    C2 = C1#collect{gets=flavors_lib:union(Sets, C1#collect.gets)},
+    C3 = C2#collect{inits=flavors_lib:union(Sets, C2#collect.inits)},
     %% Now we have everything so save it in the flavor record.
     Fl = #flavor{name=Name,                     %Call arguments
                  ivars=IVars,
@@ -76,12 +77,13 @@ defflavor(Name, IVars, Comps, Opts) ->
                  gettables=C3#collect.gets,
                  settables=C3#collect.sets,
                  inittables=C3#collect.inits,
+                 initkeywords=C3#collect.ikeys,
                  req_ivars=C3#collect.reqi,
                  req_meths=C3#collect.reqm,
                  req_flavs=C3#collect.reqf,
                  plist=C3#collect.plist
                 },
-    ?DBG_PRINT("~p\n", [Fl]),
+    ?DBG_PRINT("df 1: ~p\n", [Fl]),
     Cname = flavors_lib:core_name(Fl#flavor.name),
     %% The flavor module definition,
     Mod = [defmodule,Cname,
@@ -95,6 +97,7 @@ defflavor(Name, IVars, Comps, Opts) ->
             ['gettable-instance-variables',0],
             ['settable-instance-variables',0],
             ['inittable-instance-variables',0],
+            ['init-keywords',0],
             ['plist',0]],
            [export,                             %Methods
             ['primary-methods',0],
@@ -113,6 +116,7 @@ defflavor(Name, IVars, Comps, Opts) ->
              [defun,'gettable-instance-variables',[],?Q(Fl#flavor.gettables)],
              [defun,'settable-instance-variables',[],?Q(Fl#flavor.settables)],
              [defun,'inittable-instance-variables',[],?Q(Fl#flavor.inittables)],
+             [defun,'init-keywords',[],?Q(Fl#flavor.initkeywords)],
              [defun,'plist',[],?Q(Fl#flavor.plist)],
              %% Getting and setting instance variables.
              [defun,get,[var],
@@ -123,7 +127,7 @@ defflavor(Name, IVars, Comps, Opts) ->
                [':',erlang,put,?Q('instance-variables'),ivars],
                val]]
             ],
-    ?DBG_PRINT("~p\n", [[Mod|Funcs]]),
+    ?DBG_PRINT("df 2: ~p\n", [[Mod|Funcs]]),
     erlang:put({'flavor-core',Name}, Fl),       %Save the flavor info
     %% Return the flavor definition and standard functions.
     [progn,Mod|Funcs].
@@ -136,11 +140,11 @@ check_name(Name) ->
     is_atom(Name) orelse error({'illegal-flavor',Name}).
 
 check_instance_vars(Name, Vars) ->
-    Check = fun (V, Ivs) when is_atom(V) -> ordsets:add_element(V, Ivs);
-                ([V,_], Ivs) when is_atom(V) -> ordsets:add_element(V, Ivs);
+    Check = fun (V, Ivs) when is_atom(V) -> flavors_lib:adjoin(V, Ivs);
+                ([V,_], Ivs) when is_atom(V) -> flavors_lib:adjoin(V, Ivs);
                 (V, _) -> error({'illegal-instance-var',Name,V})
             end,
-    lists:foldl(Check, ordsets:new(), Vars).
+    lists:foldl(Check, [], Vars).
 
 check_components(Name, Comps) ->
     lfe_lib:is_symb_list(Comps) orelse error({'illegal-component',Name}).
@@ -165,9 +169,12 @@ parse_option(Opt, Args, Name, Vars, C) ->
         'inittable-instance-variables' ->
             Is = validate_instance_vars(Opt, Args, Name, Vars),
             C#collect{inits=Is};
+        %% Handle the init-plist.
+        'init-keywords' ->
+            C#collect{ikeys=Args};
         %% Handle the required things.
         'required-instance-variables' ->
-	    Is = validate_required_instance_vars(Opt, Args, Name),
+            Is = validate_required_instance_vars(Opt, Args, Name),
             C#collect{plist=orddict:store(Opt, Is, C#collect.plist)};
             %%C#collect{reqi=Args};
         'required-methods' ->
@@ -175,7 +182,7 @@ parse_option(Opt, Args, Name, Vars, C) ->
             C#collect{plist=orddict:store(Opt, Ms, C#collect.plist)};
             %%C#collect{reqm=Args};
         'required-flavors' ->
-	    Fs = validate_required_flavors(Opt, Args, Name),
+            Fs = validate_required_flavors(Opt, Args, Name),
             C#collect{plist=orddict:store(Opt, Fs, C#collect.plist)};
             %%C#collect{reqf=Args};
         %% Now for the rest which we accept.
@@ -195,9 +202,8 @@ parse_option(Opt, Args, Name, Vars, C) ->
 
 validate_instance_vars(_, [], _, Vars) -> Vars;
 validate_instance_vars(Opt, Args, Name, Vars) -> 
-    Aset = ordsets:from_list(Args),
-    case ordsets:subtract(Aset, Vars) of
-        [] -> Aset;
+    case flavors_lib:'set-difference'(Args, Vars) of
+        [] -> Args;
         Unknown -> error({'unknown-instance-variables',Name,Opt,Unknown})
     end.
 
@@ -214,7 +220,7 @@ validate_required_flavors(_Opt, Args, Name) ->
     validate_required('illegal-required-flavors', Req, Args, Name).
 
 require_symbol(A, {Rs,Es}) when is_atom(A) ->
-    {ordsets:add_element(A, Rs),Es};
+    {flavors_lib:adjoin(A, Rs),Es};
 require_symbol(A, {Rs,Es}) -> {Rs,[A|Es]}.
 
 %% validate_required_methods(Opt, Args, Name) -> Methods.
@@ -225,11 +231,11 @@ validate_required_methods(_Opt, Args, Name) ->
     validate_required('illegal-required-methods', Req, Args, Name).
 
 require_method([M,Ar], {Rs,Es}) when is_atom(M), is_integer(Ar), Ar >= 0 ->
-    {ordsets:add_element({M,Ar}, Rs),Es};
+    {flavors_lib:adjoin({M,Ar}, Rs),Es};
 require_method(A, {Rs,Es}) -> {Rs,[A|Es]}.
 
 validate_required(Error, Required, Args, Name) ->
-    case lists:foldl(Required, {ordsets:new(),[]}, Args) of
+    case lists:foldl(Required, {[],[]}, Args) of
         {Reqs,[]} -> Reqs;
         {_,Es} -> error({Error,Name,Es})
     end.
@@ -279,11 +285,12 @@ check_daemon(Flav, _, D, _) -> error({'illegal-daemon-type',Flav,D}).
 endflavor(Name) ->
     Fl = erlang:erase({'flavor-core',Name}),    %Get and erase flavor-core
     (Fl =:= undefined) andalso error({'illegal-flavor',Name}),
-    ?DBG_PRINT("~p\n", [Fl]),
+    ?DBG_PRINT("ef 1: ~p\n", [Fl]),
     %% The defined method/daemon listing functions.
-    Ms = ordsets:from_list([ M || {M,_} <- Fl#flavor.methods ]),
-    Bs = ordsets:from_list([ D || {D,before,_} <- Fl#flavor.daemons]),
-    As = ordsets:from_list([ D || {D,'after',_} <- Fl#flavor.daemons]),
+    Ms = get_methods(Fl#flavor.methods),
+    Bs = get_daemons(before, Fl#flavor.daemons),
+    As = get_daemons('after', Fl#flavor.daemons),
+    ?DBG_PRINT("ef 2: ~p\n", [{Ms,Bs,As}]),
     Funcs = [[defun,'primary-methods',[],?Q(Ms)],
              [defun,'before-daemons',[],?Q(Bs)],
              [defun,'after-daemons',[],?Q(As)]],
@@ -294,19 +301,28 @@ endflavor(Name) ->
     Defs = default_clauses(Fl, Ms),
     Perror = primary_error_clause(Fl),
     Primary = [defun,'primary-method'|
-	       Gets ++ Sets ++ Methods ++ Defs ++ [Perror]],
+               Gets ++ Sets ++ Methods ++ Defs ++ [Perror]],
     %% Build the before and after daemon functions.
     Befs = daemon_clauses(Fl, before),
     Before = [defun,'before-daemon'|Befs],
     Afts = daemon_clauses(Fl, 'after'),
     After = [defun,'after-daemon'|Afts],
-    ?DBG_PRINT("~p\n", [Funcs ++ [Primary,Before,After]]),
-    %% Return the flavor functions to be compiled.
+    ?DBG_PRINT("ef 3: ~p\n", [Funcs ++ [Primary,Before,After]]),
+    %% Return the flavor functions to be compiled as a macro expansion.
     [progn|Funcs ++ [Primary,Before,After]].
 
     %% Source = lists:concat([Fl#flavor.name,".lfe"]),
     %% {ok,_,Binary} = lfe_comp:forms(Forms, [verbose,report,{source,Source}]),
     %% file:write_file(lists:concat([Cname,".beam"]), Binary),
+
+get_methods(Ds) ->
+    lists:foldl(fun ({M,_}, Ms) -> flavors_lib:adjoin(M, Ms) end, [], Ds).
+
+get_daemons(Type, Ds) ->
+    lists:foldl(fun ({D,T1,_}, Ts) when T1 =:= Type ->
+			flavors_lib:adjoin(D, Ts);
+		    (_, Ts) -> Ts
+		end, [], Ds).
 
 primary_error_clause(#flavor{name=Name}) ->
     E = 'undefined-primary-method',
@@ -337,7 +353,7 @@ gettable_clauses(#flavor{gettables=Gs}, Meths) ->
                   B = [[get,?Q(Var)]],
                   method_clause(Var, [], B)
           end,
-    [ Get(Var) || Var <- Gs, not ordsets:is_element({Var,0}, Meths) ].
+    [ Get(Var) || Var <- Gs, not flavors_lib:member({Var,0}, Meths) ].
 
 settable_clauses(#flavor{settables=Ss}, Meths) ->
     MVs = [ {list_to_atom(lists:concat(["set-",Var])),Var} || Var <- Ss ],
@@ -345,16 +361,16 @@ settable_clauses(#flavor{settables=Ss}, Meths) ->
                   B = [[set,?Q(Var),val]],
                   method_clause(M, [val], B)
           end,
-    [ Set(M, Var) || {M,Var} <- MVs, not ordsets:is_element({M,1}, Meths) ].
+    [ Set(M, Var) || {M,Var} <- MVs, not flavors_lib:member({M,1}, Meths) ].
 
 %% default_clauses(Flavor, DefMethods) -> Clauses.
 
 default_clauses(_, Meths) ->
     Def = fun (M, As, B) -> method_clause(M, As, B) end,
     DMs = [{init,1,[plist],[?Q(ok)]},
-	   {terminate,0,[],[?Q(ok)]}],
+           {terminate,0,[],[?Q(ok)]}],
     [ Def(M, As, B) || {M,Ar,As,B} <- DMs,
-		       not ordsets:is_element({M,Ar}, Meths) ].
+                       not flavors_lib:member({M,Ar}, Meths) ].
 
 %% daemon_clauses(Flavor, Daemon, Daemons) -> Clauses
 

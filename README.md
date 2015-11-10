@@ -66,6 +66,7 @@ The currently supported the options:
 - ``gettable-instance-variables``
 - ``settable-instance-variables``
 - ``inittable-instance-variables``
+- ``init-keywords``
 - ``required-instance-variables``
 - ``required-methods`` (methods given as ``(name arity)``)
 - ``required-flavors``
@@ -104,8 +105,9 @@ of the variable ``foo`` while ``(set 'bar 42)`` sets the value of the
 variable ``bar`` to ``42``.
 
 When defining a flavor the component sequence is built as it should be
-for the ``before`` and ``after`` daemons and there is a very (very)
-rudimentary ``vanilla-flavor``.
+for the ``before`` and ``after`` daemons. There are rudimentary
+``vanilla-flavor`` and ``property-list-mixin`` flavors included in the
+release.
 
 You can only define **ONE** flavor in an LFE file and no other LFE
 module. Compiling the flavor definition file results in the

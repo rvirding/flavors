@@ -16,9 +16,10 @@
 %% Author  : Robert Virding
 %% Purpose : Basic LFE Flavors vanilla-flavor definition.
 
-%% This is just simple definition of the base flavor vanilla-flavor.
+%% This is just simple definition of the vanilla-flavor base flavor.
 %%
-%% (defflavor vanilla-flavor () () abstract-flavor)
+%% (defflavor vanilla-flavor () ()
+%%    abstract-flavor)
 %%
 %% (defmethod (vanilla-flavor print-self) (stream)
 %%   (lfe_io:print stream self))
@@ -40,6 +41,7 @@
          'gettable-instance-variables'/0,
          'settable-instance-variables'/0,
          'inittable-instance-variables'/0,
+	 'init-keywords'/0,
          plist/0]).
 -export(['primary-methods'/0,'before-daemons'/0,'after-daemons'/0]).
 -export(['primary-method'/3,'before-daemon'/3,'after-daemon'/3]).
@@ -59,6 +61,8 @@ options() -> ['abstract-flavor'].
 'settable-instance-variables'() -> [].
 
 'inittable-instance-variables'() -> [].
+
+'init-keywords'() -> [].
 
 plist() -> [{'abstract-flavor',true}].
 
