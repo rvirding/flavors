@@ -77,7 +77,7 @@ init({Flav,Fm,Opts}) ->
     end.
 
 check_init_keywords([O,_|Opts], Ivars, Ikeys, Name) ->
-    case flavors_lib:member(O, Ikeys) orelse
+    case cl:member(O, Ikeys) orelse
 	lists:keymember(O, 1, Ivars) of
 	true ->
 	    check_init_keywords(Opts, Ivars, Ikeys, Name);
@@ -86,7 +86,7 @@ check_init_keywords([O,_|Opts], Ivars, Ikeys, Name) ->
 check_init_keywords([], _, _, _) -> ok.
 
 make_map_list([{V,I}|Mlist], Opts) ->
-    Pair = case flavors_lib:getf(Opts, V) of
+    Pair = case cl:getf(Opts, V) of
 	       [] -> {V,lfe_eval:expr(I)};
                I1 -> {V,I1}
            end,

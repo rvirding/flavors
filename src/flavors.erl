@@ -152,11 +152,11 @@ check_required_ivars(Seq, Name) ->
     Req = get_required_ivars(Seq),
     check_required('required-instance-variables', Vars, Req, Name).
 
-get_vars(Seq) -> get_vars(Seq, ordsets:new()).
+get_vars(Seq) -> get_vars(Seq, []).
 
 get_vars([{_,Fc}|Fs], Vars) ->
-    Fvs = Fc:'local-instance-variables'(),      %This is an ordset
-    get_vars(Fs, ordsets:union(Fvs, Vars));
+    Fvs = Fc:'local-instance-variables'(),
+    get_vars(Fs, cl:union(Fvs, Vars));
 get_vars([], Vars) -> Vars.
 
 check_required_methods(Seq, Name) ->
@@ -164,11 +164,11 @@ check_required_methods(Seq, Name) ->
     Req = get_required_methods(Seq),
     check_required('required-methods', Meths, Req, Name).
 
-get_meths(Seq) -> get_meths(Seq, ordsets:new()).
+get_meths(Seq) -> get_meths(Seq, []).
 
 get_meths([{_,Fc}|Fs], Meths) ->
-    Ms = ordsets:from_list(get_flavor_methods(Fc)),
-    get_meths(Fs, ordsets:union(Ms, Meths));
+    Ms = get_flavor_methods(Fc),
+    get_meths(Fs, cl:union(Ms, Meths));
 get_meths([], Meths) -> Meths.
 
 check_required_flavors(Seq, Name) ->
@@ -180,7 +180,7 @@ get_flavs(Seq) ->
     lists:map(fun ({F,_}) -> F end, Seq).
 
 check_required(Opt, Avail, Req, Name) ->
-    case ordsets:subtract(Req, Avail) of
+    case cl:'set-difference'(Req, Avail) of
         [] -> ok;
         Es -> error({Opt,Name,Es})
     end.
@@ -205,11 +205,11 @@ get_required(Seq, What) ->
     Req = fun ({_,Fc}, Req) ->
                   Plist = Fc:plist(),           %This is an orddict
                   case orddict:find(What, Plist) of
-                      {ok,Vs} -> ordsets:union(Vs, Req);
+                      {ok,Vs} -> cl:union(Vs, Req);
                       error -> Req
                   end
           end,
-    lists:foldl(Req, ordsets:new(), Seq).
+    lists:foldl(Req, [], Seq).
 
 %% get_instance_vars(Sequence) -> Ivars.
 %%  Get the instance variables. Use an ordered set to keep the
@@ -232,7 +232,7 @@ merge_instance_vars({_,Fc}, Vars) ->
 
 get_init_keywords(Seq) ->
     Kws = fun ({_,Fc}, Kws) ->
-                  flavors_lib:union(Fc:'init-keywords'(), Kws)
+                  cl:union(Fc:'init-keywords'(), Kws)
           end,
     lists:foldl(Kws, [], Seq).
 

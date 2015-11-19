@@ -97,18 +97,18 @@ set(Var, Val) ->
     Val.
 
 'primary-method'('get', _, {Pname}) ->
-    flavors_lib:getf(get('property-list'), Pname);
+    cl:getf(get('property-list'), Pname);
 'primary-method'('get', _, {Pname,Def}) ->
-    flavors_lib:getf(get('property-list'), Pname, Def);
+    cl:getf(get('property-list'), Pname, Def);
 'primary-method'('getl', _, {Pnames}) ->
-    {_,_,Plist} = flavors_lib:'get-properties'(get('property-list'), Pnames),
+    {_,_,Plist} = cl:'get-properties'(get('property-list'), Pnames),
     Plist;
 'primary-method'('putprop', _, {Value,Pname}) ->
-    Plist = flavors_lib:putf(get('property-list'), Value, Pname),
+    Plist = cl:putf(get('property-list'), Value, Pname),
     set('property-list', Plist),
     Plist;
 'primary-method'('remprop', _, {Pname}) ->
-    Plist = flavors_lib:remf(get('property-list'), Pname),
+    Plist = cl:remf(get('property-list'), Pname),
     set('property-list', Plist),
     Plist;
 'primary-method'('get-property-list', _, {}) ->

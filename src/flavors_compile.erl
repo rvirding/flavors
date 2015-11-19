@@ -66,8 +66,8 @@ defflavor(Name, IVars, Comps, Opts) ->
     C1 = parse_options(Opts, Name, Vars, C0),
     %% Settable instance variables are also gettable and inittable.
     Sets = C1#collect.sets,
-    C2 = C1#collect{gets=flavors_lib:union(Sets, C1#collect.gets)},
-    C3 = C2#collect{inits=flavors_lib:union(Sets, C2#collect.inits)},
+    C2 = C1#collect{gets=cl:union(Sets, C1#collect.gets)},
+    C3 = C2#collect{inits=cl:union(Sets, C2#collect.inits)},
     %% Now we have everything so save it in the flavor record.
     Fl = #flavor{name=Name,                     %Call arguments
                  ivars=IVars,
@@ -118,9 +118,13 @@ defflavor(Name, IVars, Comps, Opts) ->
              [defun,'inittable-instance-variables',[],?Q(Fl#flavor.inittables)],
              [defun,'init-keywords',[],?Q(Fl#flavor.initkeywords)],
              [defun,'plist',[],?Q(Fl#flavor.plist)],
-             %% Getting and setting instance variables.
+             %% Getting and setting instance variables. Internal functions.
+             [defun,get,[],
+              [':',erlang,get,?Q('instance-variables')]],
              [defun,get,[var],
               [':',maps,get,var,[':',erlang,get,?Q('instance-variables')]]],
+             [defun,set,[ivars],
+              [':',erlang,put,?Q('instance-variables'),ivars]],
              [defun,set,[var,val],
               ['let*',[[ivars,[':',erlang,get,?Q('instance-variables')]],
                        [ivars,[':',maps,update,var,val,ivars]]],
@@ -140,8 +144,8 @@ check_name(Name) ->
     is_atom(Name) orelse error({'illegal-flavor',Name}).
 
 check_instance_vars(Name, Vars) ->
-    Check = fun (V, Ivs) when is_atom(V) -> flavors_lib:adjoin(V, Ivs);
-                ([V,_], Ivs) when is_atom(V) -> flavors_lib:adjoin(V, Ivs);
+    Check = fun (V, Ivs) when is_atom(V) -> cl:adjoin(V, Ivs);
+                ([V,_], Ivs) when is_atom(V) -> cl:adjoin(V, Ivs);
                 (V, _) -> error({'illegal-instance-var',Name,V})
             end,
     lists:foldl(Check, [], Vars).
@@ -202,7 +206,7 @@ parse_option(Opt, Args, Name, Vars, C) ->
 
 validate_instance_vars(_, [], _, Vars) -> Vars;
 validate_instance_vars(Opt, Args, Name, Vars) -> 
-    case flavors_lib:'set-difference'(Args, Vars) of
+    case cl:'set-difference'(Args, Vars) of
         [] -> Args;
         Unknown -> error({'unknown-instance-variables',Name,Opt,Unknown})
     end.
@@ -220,7 +224,7 @@ validate_required_flavors(_Opt, Args, Name) ->
     validate_required('illegal-required-flavors', Req, Args, Name).
 
 require_symbol(A, {Rs,Es}) when is_atom(A) ->
-    {flavors_lib:adjoin(A, Rs),Es};
+    {cl:adjoin(A, Rs),Es};
 require_symbol(A, {Rs,Es}) -> {Rs,[A|Es]}.
 
 %% validate_required_methods(Opt, Args, Name) -> Methods.
@@ -231,7 +235,7 @@ validate_required_methods(_Opt, Args, Name) ->
     validate_required('illegal-required-methods', Req, Args, Name).
 
 require_method([M,Ar], {Rs,Es}) when is_atom(M), is_integer(Ar), Ar >= 0 ->
-    {flavors_lib:adjoin({M,Ar}, Rs),Es};
+    {cl:adjoin({M,Ar}, Rs),Es};
 require_method(A, {Rs,Es}) -> {Rs,[A|Es]}.
 
 validate_required(Error, Required, Args, Name) ->
@@ -316,13 +320,13 @@ endflavor(Name) ->
     %% file:write_file(lists:concat([Cname,".beam"]), Binary),
 
 get_methods(Ds) ->
-    lists:foldl(fun ({M,_}, Ms) -> flavors_lib:adjoin(M, Ms) end, [], Ds).
+    lists:foldl(fun ({M,_}, Ms) -> cl:adjoin(M, Ms) end, [], Ds).
 
 get_daemons(Type, Ds) ->
     lists:foldl(fun ({D,T1,_}, Ts) when T1 =:= Type ->
-			flavors_lib:adjoin(D, Ts);
-		    (_, Ts) -> Ts
-		end, [], Ds).
+                        cl:adjoin(D, Ts);
+                    (_, Ts) -> Ts
+                end, [], Ds).
 
 primary_error_clause(#flavor{name=Name}) ->
     E = 'undefined-primary-method',
@@ -353,7 +357,7 @@ gettable_clauses(#flavor{gettables=Gs}, Meths) ->
                   B = [[get,?Q(Var)]],
                   method_clause(Var, [], B)
           end,
-    [ Get(Var) || Var <- Gs, not flavors_lib:member({Var,0}, Meths) ].
+    [ Get(Var) || Var <- Gs, not cl:member({Var,0}, Meths) ].
 
 settable_clauses(#flavor{settables=Ss}, Meths) ->
     MVs = [ {list_to_atom(lists:concat(["set-",Var])),Var} || Var <- Ss ],
@@ -361,7 +365,7 @@ settable_clauses(#flavor{settables=Ss}, Meths) ->
                   B = [[set,?Q(Var),val]],
                   method_clause(M, [val], B)
           end,
-    [ Set(M, Var) || {M,Var} <- MVs, not flavors_lib:member({M,1}, Meths) ].
+    [ Set(M, Var) || {M,Var} <- MVs, not cl:member({M,1}, Meths) ].
 
 %% default_clauses(Flavor, DefMethods) -> Clauses.
 
@@ -370,7 +374,7 @@ default_clauses(_, Meths) ->
     DMs = [{init,1,[plist],[?Q(ok)]},
            {terminate,0,[],[?Q(ok)]}],
     [ Def(M, As, B) || {M,Ar,As,B} <- DMs,
-                       not flavors_lib:member({M,Ar}, Meths) ].
+                       not cl:member({M,Ar}, Meths) ].
 
 %% daemon_clauses(Flavor, Daemon, Daemons) -> Clauses
 
