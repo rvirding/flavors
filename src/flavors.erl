@@ -73,7 +73,7 @@ make_load_module(Flav, Fm, Fc) ->
     %% Do we want the vanilla flavor?
     Vanilla = case orddict:is_key('no-vanilla-flavor', Plist) of
                   true -> [];
-                  false -> ['vanilla-flavor']
+                  false -> ['vanilla']
               end,
     Seq = make_comp_sequence([Flav|Vanilla]),
     %% Check for required instance variables, methods and flavors.

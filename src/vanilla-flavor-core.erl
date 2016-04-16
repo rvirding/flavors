@@ -12,27 +12,27 @@
 %% See the License for the specific language governing permissions and
 %% limitations under the License.
 
-%% File    : vanilla-flavor-flavor-core.erl
+%% File    : vanilla-flavor-core.erl
 %% Author  : Robert Virding
-%% Purpose : Basic LFE Flavors vanilla-flavor definition.
+%% Purpose : Basic LFE Flavors vanilla flavor definition.
 
-%% This is just simple definition of the vanilla-flavor base flavor.
+%% This is just simple definition of the vanilla flavor base flavor.
 %%
-%% (defflavor vanilla-flavor () ()
+%% (defflavor vanilla () ()
 %%    abstract-flavor)
 %%
-%% (defmethod (vanilla-flavor print-self) (stream)
+%% (defmethod (vanilla print-self) (stream)
 %%   (lfe_io:print stream self))
 %%
-%% (defmethod (vanilla-flavor print-self) ()
+%% (defmethod (vanilla print-self) ()
 %%   (lfe_io:print self))
 %%
-%% (defmethod (vanilla-flavor set) (var val)
+%% (defmethod (vanilla set) (var val)
 %%   (set var val))
 %%
-%% (endflavor vanilla-flavor)
+%% (endflavor vanilla)
 
--module('vanilla-flavor-flavor-core').
+-module('vanilla-flavor-core').
 
 -compile({no_auto_import,[get/0,get/1]}).
 
@@ -46,7 +46,7 @@
 -export(['primary-methods'/0,'before-daemons'/0,'after-daemons'/0]).
 -export(['primary-method'/3,'before-daemon'/3,'after-daemon'/3]).
 
-name() -> 'vanilla-flavor'.
+name() -> 'vanilla'.
 
 'instance-variables'() -> [].
 
@@ -93,10 +93,10 @@ set(Var, Val) ->
 'primary-method'(set, _, {I,V}) ->
     set(I, V);
 'primary-method'(M, _, _) ->
-    error({'undefined-primary-method','vanilla-flavor',M}).
+    error({'undefined-primary-method','vanilla',M}).
 
 'before-daemon'(M, _, _) ->
-    error({'undefined-before-daemon','vanilla-flavor',M}).
+    error({'undefined-before-daemon','vanilla',M}).
 
 'after-daemon'(M, _, _) ->
-    error({'undefined-after-daemon','vanilla-flavor',M}).
+    error({'undefined-after-daemon','vanilla',M}).

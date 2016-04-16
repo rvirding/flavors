@@ -1,8 +1,8 @@
 {application,flavors,
              [{description,"Lisp Flavoured Erlang Flavors"},
-              {vsn,"0.1.0"},
+              {vsn,"0.1.1"},
               {modules,[flavors,flavors_compile,flavors_instance,flavors_lib,
                         'property-list-mixin-flavor-core',
-                        'vanilla-flavor-flavor-core']},
+                        'vanilla-flavor-core']},
               {registered,[]},
               {applications,[kernel,stdlib,lfe]}]}.
