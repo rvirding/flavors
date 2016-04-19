@@ -21,13 +21,13 @@
 %% (defflavor vanilla () ()
 %%    abstract-flavor)
 %%
-%% (defmethod (vanilla print-self) (stream)
+%% (defmethod (print-self) (stream)
 %%   (lfe_io:print stream self))
 %%
-%% (defmethod (vanilla print-self) ()
+%% (defmethod (print-self) ()
 %%   (lfe_io:print self))
 %%
-%% (defmethod (vanilla set) (var val)
+%% (defmethod (set) (var val)
 %%   (set var val))
 %%
 %% (endflavor vanilla)

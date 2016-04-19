@@ -6,10 +6,10 @@
   settable-instance-variables
   inittable-instance-variables)
 
-(defmethod (foo before hack) ()
+(defmethod (hack before) ()
   (lfe_io:format "foo, hack before ~p\n" (list self)))
 
-(defmethod (foo after hack) ()
+(defmethod (hack after) ()
   (lfe_io:format "foo, hack after ~p\n" (list self)))
 
 (endflavor foo)
@@ -20,11 +20,11 @@
   settable-instance-variables
   inittable-instance-variables)
 
-(defmethod (foo-base hack) ()
+(defmethod (hack) ()
   (lfe_io:format "foo-base, hack ~p\n" (list self))
   'foo-base)
 
-(defmethod (foo-base after hack) ()
+(defmethod (hack after) ()
   (lfe_io:format "foo-base, hack after ~p\n" (list self)))
 
 (endflavor foo-base)
@@ -36,10 +36,10 @@
   inittable-instance-variables
   abstract-flavor)
 
-(defmethod (foo-mixin before hack) ()
+(defmethod (hack before) ()
   (lfe_io:format "foo-mixin, hack before ~p\n" (list self)))
 
-(defmethod (foo-mixin after hack) ()
+(defmethod (hack after) ()
   (lfe_io:format "foo-mixin, hack after ~p\n" (list self)))
 
 (endflavor foo-mixin)
@@ -51,10 +51,10 @@
   inittable-instance-variables
   abstract-flavor)
 
-(defmethod (bar-mixin before hack) ()
+(defmethod (hack before) ()
   (lfe_io:format "bar-mixin, hack before ~p\n" (list self)))
 
-(defmethod (bar-mixin hack) ()
+(defmethod (hack) ()
   (lfe_io:format "bar-mixin, hack ~p\n" (list self))
   'bar-mixin)
 

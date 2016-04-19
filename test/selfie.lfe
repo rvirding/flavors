@@ -17,7 +17,7 @@
   (required-instance-variables a b)
   )
 
-(defmethod (self-2 selfie) (x)          ;We send to ourselves a lot
+(defmethod (selfie) (x)                 ;We send to ourselves a lot
   (let ((a (send self 'a))
         (b (send self 'b)))
     (send self 'set-x (+ a b x))

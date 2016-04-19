@@ -11,13 +11,13 @@
   (settable-instance-variables b)
   )
 
-(defmethod (flav-1 set-b) (x)           ;This should shadow the settable
+(defmethod (set-b) (x)                  ;This should shadow the settable
   (set 'b (tuple 'flav-1 x)))
 
-(defmethod (flav-1 a) ()                ;This should shadow the gettable
+(defmethod (a) ()                       ;This should shadow the gettable
   (tuple 'flav-1 (get 'a)))
 
-(defmethod (flav-1 x) (m n)             ;This should not shadow the gettable
+(defmethod (x) (m n)                    ;This should not shadow the gettable
   (tuple 'flav-1 (get 'x) m n))
 
 (endflavor flav-1)
@@ -27,7 +27,7 @@
   (settable-instance-variables b)
   )
 
-(defmethod (flav-2 b) ()
+(defmethod (b) ()
   '42)
 
 (endflavor flav-2)

@@ -9,13 +9,13 @@
   (required-methods (set-y 1) (set-a 1))
   abstract-flavor)
 
-(defmethod (f2 before set-y) (v)
+(defmethod (set-y before) (v)
   (lfe_io:format "f2 before set-y ~p\n" (list self)))
 
-(defmethod (f2 after set-y) (v)
+(defmethod (set-y after) (v)
   (lfe_io:format "f2 after set-y ~p\n" (list self)))
 
-(defmethod (f2 three)
+(defmethod (three)
   (('x x) (set 'x x))
   (('y y) (set 'y y)))
 

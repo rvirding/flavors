@@ -22,20 +22,20 @@
 %%   settable-instance-variables
 %%   abstract-flavor)
 %%
-%% (defmethod (property-list-mixin get) (pname)
+%% (defmethod (get) (pname)
 %%   (cl:getf (get 'property-list) pname))
 %%
-%% (defmethod (property-list-mixin get) (pname def)
+%% (defmethod (get) (pname def)
 %%   (cl:getf (get 'property-list) pname def))
 %%
-%% (defmethod (property-list-mixin getl) (pnames)
+%% (defmethod (getl) (pnames)
 %%   (element 3 (cl:get-properties (get 'property-list) pnames)))
 %%
-%% (defmethod (property-list-mixin putprop) (value pname)
+%% (defmethod (putprop) (value pname)
 %%   (let ((plist (cl:putf (get 'property-list) value pname)))
 %%     (set 'property-list plist)))
 %%
-%% (defmethod (property-list-mixin remprop) (pname)
+%% (defmethod (remprop) (pname)
 %%   (let ((plist (cl:remf (get 'property-list) pname)))
 %%     (set 'property-list plist)))
 %%

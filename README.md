@@ -52,12 +52,12 @@ To access the macros do ``(include-file "include/flavors.lfe")`` or
 ``(include-lib "flavors/include/flavors.lfe")`` if you have the
 flavors application in your search path.
 
-The following macros are available for defining flavorf and methods:
+The following macros are available for defining flavors and methods:
 
 ```lisp
 (defflavor <flavor-name> (<var1> <var2> ...) (<flav1> <flav2> ...) <opt1> <opt2> ...)
-(defmethod (<flavor-name> <operation>) <lambda-list> <form1> <form2>)
-(defmethod (<flavor-name> <method-type> <operation>) <lambda-list> <form1> <form2>)
+(defmethod (<operation>) <lambda-list> <form1> <form2>)
+(defmethod (<operation> <method-type>) <lambda-list> <form1> <form2>)
 (endflavor <flavor-name>)               ;Must be last after the methods
 ```
 

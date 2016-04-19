@@ -6,7 +6,7 @@
   ;; Settables are also gettable and inittable.
   (settable-instance-variables radius))
 
-(defmethod (circle draw) ()
+(defmethod (draw) ()
   (lfe_io:format "Drawing circle at (~p ~p), radius ~p~n"
                  (list (get 'x) (get 'y) (get 'radius))))
 
@@ -18,7 +18,7 @@
   ;; Settables are also gettable and inittable.
   (settable-instance-variables width height))
 
-(defmethod (rectangle draw) ()
+(defmethod (draw) ()
   (lfe_io:format "Drawing rectangle at (~p ~p), width ~p, height ~p~n"
                  (list (get 'x) (get 'y)
                        (get 'width) (get 'height))))
@@ -31,19 +31,19 @@
   ;; Settables are also gettable and inittable.
   (settable-instance-variables x y))
 
-(defmethod (shape move-to) (new-x new-y)
+(defmethod (move-to) (new-x new-y)
   (set 'x new-x)
   (set 'y new-y)
   'ok)
 
-(defmethod (shape r-move-to) (delta-x delta-y)
+(defmethod (r-move-to) (delta-x delta-y)
   (let ((x (get 'x))
         (y (get 'y)))
     (set 'x (+ x delta-x))
     (set 'y (+ y delta-y))
     'ok))
 
-(defmethod (shape draw) ()
+(defmethod (draw) ()
   (lfe_io:format "Drawing shape at (~p,~p)~n"
                  (list (get 'x) (get 'y))))
 

@@ -59,6 +59,8 @@ erlc-compile: $(addprefix $(EBINDIR)/, $(EBINS))
 ## Compile using lfec
 lfec-compile: $(addprefix $(EBINDIR)/, $(LBINS))
 
+erlc-lfec: erlc-compile lfec-compile
+
 docs:
 
 clean:

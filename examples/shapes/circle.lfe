@@ -6,7 +6,7 @@
   ;; Settables are also gettable and inittable.
   (settable-instance-variables radius))
 
-(defmethod (circle draw) ()
+(defmethod (draw) ()
   (lfe_io:format "Drawing circle at (~p ~p), radius ~p~n"
                  (list (get 'x) (get 'y) (get 'radius))))
 

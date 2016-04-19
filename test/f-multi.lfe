@@ -1,5 +1,4 @@
 ;; Simple test of defining multiple flavors in one file.
-;; Doesn't work yet.
 
 (include-file "include/flavors.lfe")
 
@@ -7,7 +6,7 @@
            (f2)
   settable-instance-variables)
 
-(defmethod (f1 bert) (x)
+(defmethod (bert) (x)
   (f1-local x))
 
 (defun f1-local (x)
@@ -20,7 +19,7 @@
   settable-instance-variables
   abstract-flavor)
 
-(defmethod (f2 sune) (x)
+(defmethod (sune) (x)
   (f2-local x))
 
 (defun f2-local (x)

@@ -22,8 +22,8 @@
 
 -include("flavors.hrl").
 
--define(DBG_PRINT(Format, Args), ok).
-%%-define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
+%%-define(DBG_PRINT(Format, Args), ok).
+-define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
 
 %% The flavor record.
 -record(flavor, {name,                          %Flavor name
@@ -132,7 +132,7 @@ defflavor(Name, IVars, Comps, Opts) ->
                val]]
             ],
     ?DBG_PRINT("df 2: ~p\n", [[Mod|Funcs]]),
-    erlang:put({'flavor-core',Name}, Fl),       %Save the flavor info
+    erlang:put('flavor-core', Fl),              %Save the flavor info
     %% Return the flavor definition and standard functions.
     [progn,Mod|Funcs].
 
@@ -248,17 +248,15 @@ validate_required(Error, Required, Args, Name) ->
 %%  Save a method definition for later processing.
 
 defmethod(Method, Def) ->
-    Name = method_flavor(Method),               %Check it is the right flavor
-    case erlang:get({'flavor-core',Name}) of
-        undefined -> error({'illegal-flavor',Name});
+    case erlang:get('flavor-core') of
+        undefined -> error('undefined-flavor');
         Fl0 ->
+	    Name = Fl0#flavor.name,
             Fl1 = ?CATCH(defmethod(Method, Def, Fl0),
                          error({'illegal-method',Name,Method})),
-            erlang:put({'flavor-core',Name}, Fl1),
+            erlang:put('flavor-core', Fl1),
             [progn]
     end.
-
-method_flavor([Flav|_]) -> Flav.
 
 method_arity([As|_]) ->
     case lfe_lib:is_symb_list(As) of
@@ -266,11 +264,11 @@ method_arity([As|_]) ->
         false -> length(hd(As))                 %Look at args of first clause
     end.
 
-defmethod([Flav,Meth], Def, #flavor{name=Flav,methods=Ms}=Fl) ->
+defmethod([Meth], Def, #flavor{name=Flav,methods=Ms}=Fl) ->
     check_method(Flav, Meth, Def),
     Ar = method_arity(Def),
     Fl#flavor{methods=Ms ++ [{{Meth,Ar},Def}]};
-defmethod([Flav,Daemon,Meth], Def, #flavor{name=Flav,daemons=Ds}=Fl) ->
+defmethod([Meth,Daemon], Def, #flavor{name=Flav,daemons=Ds}=Fl) ->
     check_daemon(Flav, Meth, Daemon, Def),
     Ar = method_arity(Def),
     Fl#flavor{daemons=Ds ++ [{{Meth,Ar},Daemon,Def}]}.
@@ -287,8 +285,9 @@ check_daemon(Flav, _, D, _) -> error({'illegal-daemon-type',Flav,D}).
 %%  which defines the flavor core.
 
 endflavor(Name) ->
-    Fl = erlang:erase({'flavor-core',Name}),    %Get and erase flavor-core
-    (Fl =:= undefined) andalso error({'illegal-flavor',Name}),
+    Fl = erlang:erase('flavor-core'),           %Get and erase flavor-core
+    ((Fl =:= undefined) orelse (Name =/= Fl#flavor.name))
+	andalso error({'illegal-flavor',Name}),
     ?DBG_PRINT("ef 1: ~p\n", [Fl]),
     %% The defined method/daemon listing functions.
     Ms = get_methods(Fl#flavor.methods),

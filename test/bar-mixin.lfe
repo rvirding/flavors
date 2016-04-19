@@ -7,10 +7,10 @@
   inittable-instance-variables
   abstract-flavor)
 
-(defmethod (bar-mixin before hack) ()
+(defmethod (hack before) ()
   (lfe_io:format "bar-mixin, hack before ~p\n" (list self)))
 
-(defmethod (bar-mixin hack) ()
+(defmethod (hack) ()
   (lfe_io:format "bar-mixin, hack ~p\n" (list self))
   'bar-mixin)
 

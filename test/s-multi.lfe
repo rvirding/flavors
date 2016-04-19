@@ -9,13 +9,13 @@
   (required-instance-variables y)
   )
 
-(defmethod (s1 set-d) (v)	        ;Setting settable in this flavor
+(defmethod (set-d) (v)                  ;Setting settable in this flavor
   (set 'd (tuple 's1 v)))
 
-(defmethod (s1 set-y) (v)		;Setting variable in other flavor
+(defmethod (set-y) (v)                  ;Setting variable in other flavor
   (set 'y (tuple 's1 v)))
 
-(defmethod (s1 set-c) (v)		;Setting settable in other flavor
+(defmethod (set-c) (v)                  ;Setting settable in other flavor
   (set 'c (tuple 's1 v)))
 
 (endflavor s1)
@@ -27,16 +27,16 @@
   (required-instance-variables x)
   abstract-flavor)
 
-(defmethod (s2 set-a) (v)		;Setting settable in other flavor
+(defmethod (set-a) (v)                  ;Setting settable in other flavor
   (set 'a (tuple 's2 v)))
 
-(defmethod (s2 set-b) (v)	        ;Setting settable in this flavor
+(defmethod (set-b) (v)                  ;Setting settable in this flavor
   (set 'b (tuple 's2 v)))
 
-(defmethod (s2 set-x) (v)		;Setting variable in other flavor
+(defmethod (set-x) (v)                  ;Setting variable in other flavor
   (set 'x (tuple 's2 v)))
 
-(defmethod (s2 init) (v)		;Redefining init
+(defmethod (init) (v)                   ;Redefining init
   (tuple 's2 v))
 
 (endflavor s2)

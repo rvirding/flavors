@@ -6,11 +6,11 @@
   settable-instance-variables
   inittable-instance-variables)
 
-(defmethod (foo-base hack) ()
+(defmethod (hack) ()
   (lfe_io:format "foo-base, hack ~p\n" (list self))
   'foo-base)
 
-(defmethod (foo-base after hack) ()
+(defmethod (hack after) ()
   (lfe_io:format "foo-base, hack after ~p\n" (list self)))
 
 (endflavor foo-base)
