@@ -1,28 +1,28 @@
 ;; Simple test of defining multiple flavors in one file.
+;; We use module macro interface instead of including the macro
+;; definition file.
 
-(include-file "include/flavors.lfe")
+(flavors:defflavor f1 (a b c)
+                   (f2)
+   settable-instance-variables)
 
-(defflavor f1 (a b c)
-           (f2)
-  settable-instance-variables)
-
-(defmethod (bert) (x)
+(flavors:defmethod (bert) (x)
   (f1-local x))
 
 (defun f1-local (x)
   (tuple 'f1 x))
 
-(endflavor f1)
+(flavors:endflavor f1)
 
-(defflavor f2 (a x y)
-           ()
+(flavors:defflavor f2 (a x y)
+                   ()
   settable-instance-variables
   abstract-flavor)
 
-(defmethod (sune) (x)
+(flavors:defmethod (sune) (x)
   (f2-local x))
 
 (defun f2-local (x)
   (tuple 'f2 x))
 
-(endflavor f2)
+(flavors:endflavor f2)

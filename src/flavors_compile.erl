@@ -22,8 +22,8 @@
 
 -include("flavors.hrl").
 
-%%-define(DBG_PRINT(Format, Args), ok).
--define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
+-define(DBG_PRINT(Format, Args), ok).
+%%-define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
 
 %% The flavor record.
 -record(flavor, {name,                          %Flavor name

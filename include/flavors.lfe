@@ -32,4 +32,5 @@
    `(flavors:instantiate-flavor ,name (list ,@opts))))
 
 (defmacro send
-  (`(,self ,message . ,args) `(flavors:send ,self ,message (tuple ,@args))))
+  (`(,self ,message . ,args)
+   `(flavors:send-method ,self ,message (tuple ,@args))))

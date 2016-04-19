@@ -18,20 +18,48 @@
 
 -module(flavors).
 
--export(['instantiate-flavor'/2,send/3]).
+-export(['instantiate-flavor'/2,'send-method'/3]).
+%% Compiled macro handling.
+-export(['LFE-EXPAND-EXPORTED-MACRO'/3]).
 
 -include("flavors.hrl").
 
-%%-define(DBG_PRINT(Format, Args), ok).
--define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
+-define(DBG_PRINT(Format, Args), ok).
+%%-define(DBG_PRINT(Format, Args), lfe_io:format(Format, Args)).
 
-%% send(Instance, Method, ArgsTuple) -> {Result,Instance}.
+%% 'LFE-EXPAND-EXPORTED-MACRO'(Name, Args, Env) -> {yes,Expansion} | no.
+%%  Explicitly define this function so we can call the defflavor,
+%%  defmethod, endflavor, make-instance and send macros as compiled
+%%  macros without having to include flavors.lfe. These are exactly
+%%  equivalent to those macros.
+
+'LFE-EXPAND-EXPORTED-MACRO'(MacroName, MacroArgs, _Env) ->
+    case {MacroName,MacroArgs} of
+        %% Do the actual macro expansion.
+        {defflavor,[Flav,Vars,Comps|Opts]} ->
+            {yes,flavors_compile:defflavor(Flav, Vars, Comps, Opts)};
+        {defmethod,[Meth|Def]} ->
+            {yes,flavors_compile:defmethod(Meth, Def)};
+        {endflavor,[Flav]} ->
+            {yes,flavors_compile:endflavor(Flav)};
+        %% Basically implement variable arity functions. Make sure we
+        %% don't try to expand any further.
+        {'make-instance',[Flav|Opts]} ->
+            {yes,[call,?Q(flavors),?Q('instantiate-flavor'),
+                  Flav,[list|Opts]]};
+        {send,[Self,Msg|Args]} ->
+            {yes,[call,?Q(flavors),?Q('send-method'),
+                  Self,Msg,[tuple|Args]]};
+        _ -> no
+    end.
+
+%% 'send-method'(Instance, Method, ArgsTuple) -> {Result,Instance}.
 %%  Send a method and its arguments to be evaluated by flavor
 %%  instance. Any errors occuring in the instance are sent back here
 %%  and resignaled here. This seems more reasonable than crashing the
 %%  instance.
 
-send(#'flavor-instance'{flavor_mod=Fm,instance=Pid}=Inst, Meth, Args) ->
+'send-method'(#'flavor-instance'{flavor_mod=Fm,instance=Pid}=Inst, Meth, Args) ->
     if Pid =:= self() ->                        %Are we calling ourselves?
             Fm:'combined-method'(Meth, Inst, Args);
        true ->
@@ -42,7 +70,7 @@ send(#'flavor-instance'{flavor_mod=Fm,instance=Pid}=Inst, Meth, Args) ->
                 {throw,Thrown} -> throw(Thrown) %Rethrow value
             end
     end;
-send(_, _, _) ->
+'send-method'(_, _, _) ->
     error(flavor_instance).
 
 %% 'instantiate-flavor'(Flavor, OptionPlist) -> Instance.
