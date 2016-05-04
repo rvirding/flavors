@@ -1,4 +1,4 @@
-%% Copyright (c) 2015 Robert Virding
+%% Copyright (c) 2016 Robert Virding
 %%
 %% Licensed under the Apache License, Version 2.0 (the "License");
 %% you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 -module(flavors).
 
 -export(['instantiate-flavor'/2,'send-method'/3]).
+
 %% Compiled macro handling.
 -export(['LFE-EXPAND-EXPORTED-MACRO'/3]).
 
@@ -149,25 +150,24 @@ load_module(Forms, Flav, Fm) ->
     end.
 
 %% make_comp_sequence(Flavors) -> Sequence.
-%%  Make the component sequence. The resultant component sequence is a
-%%  list of #(flavor flavor-core) and is always kept in order so all
-%%  new flavors are added to the end of the sequence list.
+%%  Make the component sequence. We generate the same ordering as in
+%%  classic MIT flavors. This measn we have no problems with circular
+%%  dependencies but a flavor may not always precede its components.
+%%  The resultant component sequence is a list of #(flavor
+%%  flavor-core).
 
 make_comp_sequence(Seq) ->
-    add_comps(Seq, []).
+    make_comp_sequence(Seq, []).
 
-add_comps([F|Fs], Seq0) ->
-    Seq1 = case lists:keymember(F, 1, Seq0) of  %List of #(flav flav-core)
-               true -> Seq0;
-               false -> add_comp(F, Seq0)       %Add this flavors components
-           end,
-    add_comps(Fs, Seq1);
-add_comps([], Seq) -> Seq.
-
-add_comp(F, Seq) ->
-    Fc = flavors_lib:core_name(F),              %Flavor core module name
-    Cs = Fc:components(),                       %Flavor components
-    add_comps(Cs, Seq ++ [{F,Fc}]).             %We come before our components
+make_comp_sequence([F|Fs], Seq) ->
+    case lists:keymember(F, 1, Seq) of
+        true -> make_comp_sequence(Fs, Seq);
+        false ->
+            Fc = flavors_lib:core_name(F),
+            Cs = Fc:components(),
+            make_comp_sequence(Cs ++ Fs, [{F,Fc}|Seq])
+    end;
+make_comp_sequence([], Seq) -> lists:reverse(Seq).
 
 %% check_required_ivars(Seq, Name) -> ok.
 %% check_required_methods(Seq, Name) -> ok.
