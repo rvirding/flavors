@@ -6,8 +6,6 @@ LFE Flavors package
 
 Implements the Lisp Machine flavors system in/and for LFE.
 
-This is becoming less and less experimental. There are older experimental versions which test different implementation methods.
-
 NOTE: in these descriptions we will not describe the Lisp Machine
 flavors. Check here for the [Lisp Machine manual]
 (http://bitsavers.trailing-edge.com/pdf/mit/cadr/chinual_6thEd_Jan84/),
@@ -182,14 +180,3 @@ and ``bar-mixin``.
 compiler which can handle the module not being the same as the file
 name. However the .beam still has the same name as the module as it
 must.
-
-### v1
-
-This is the original version in which the flavor instance is just a
-map which behaves just like any normal map or other data
-structure. This means that an instance is not a global object and when
-one is updated then a new one is created and the old one is there
-unchanged.
-
-This means that this flavors version is like super records/elixir
-structs on steroids and is probably not what most people would expect.
