@@ -106,7 +106,12 @@ defflavor(Name, IVars, Comps, Opts) ->
            [export,                             %Method functions
             ['primary-method',3],
             ['before-daemon',3],
-            ['after-daemon',3]]],
+            ['after-daemon',3]],
+	   %% Inofrm compiler of predefined getters and setters.
+	   [compile,
+	    {no_auto_import,[{get,0},{get,1}]},
+	    {nowarn_unused_function,[{get,0},{get,1},{set,1},{set,2}]}]
+	  ],
     %% The standard flavor functions.
     Funcs = [[defun,name,[],?Q(Name)],
              [defun,'instance-variables',[],?Q(Fl#flavor.ivars)],
