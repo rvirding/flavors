@@ -1,8 +1,12 @@
 {application,flavors,
              [{description,"Lisp Flavoured Erlang Flavors"},
               {vsn,"0.2.0"},
-              {modules,[flavors,flavors_compile,flavors_instance,flavors_lib,
+              {registered,[]},
+              {modules,[flavors,flavors_app,flavors_compile,flavors_instance,
+                        flavors_lib,flavors_sup,
                         'property-list-mixin-flavor-core',
                         'vanilla-flavor-core']},
-              {registered,[]},
-              {applications,[kernel,stdlib,lfe]}]}.
+              {applications,[kernel,stdlib,lfe]},
+              {env,[]},
+              {licenses,["Apache 2.0"]},
+              {links,[]}]}.
