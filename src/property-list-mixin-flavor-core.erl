@@ -44,6 +44,7 @@
 -module('property-list-mixin-flavor-core').
 
 -compile({no_auto_import,[get/0,get/1]}).
+-compile({nowarn_unused_function, [get/0,get/1,set/1,set/2]}).
 
 -export([name/0,'instance-variables'/0,components/0,options/0]).
 -export(['local-instance-variables'/0,
@@ -83,12 +84,13 @@ plist() -> [{'abstract-flavor',true}].
 
 'after-daemons'() -> [].
 
--compile({nowarn_unused_function, [get/0,get/1,set/2]}).
-
 get() -> erlang:get('instance-variables').
 
 get(Var) ->
     maps:get(Var, erlang:get('instance-variables')).
+
+set(Ivars) ->
+    erlang:put('instance-variables', Ivars).
 
 set(Var, Val) ->
     Ivars0 = erlang:get('instance-variables'),
